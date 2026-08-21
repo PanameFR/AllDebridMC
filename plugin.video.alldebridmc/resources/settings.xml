@@ -94,5 +94,52 @@
                 </setting>
             </group>
         </category>
+        <category id="lists" label="30100" help="">
+            <group id="1">
+                <setting id="lists_tmdb_api_key" type="string" label="30101" help="">
+                    <level>0</level>
+                    <default>a5b87c828ee0709696b5687ef931dfe9</default>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <control type="edit" format="string">
+                        <heading>30101</heading>
+                    </control>
+                </setting>
+                <setting id="lists_metadata_language" type="string" label="30102" help="">
+                    <level>0</level>
+                    <default>fr-FR</default>
+                    <constraints>
+                        <options>
+                            <option label="Francais">fr-FR</option>
+                            <option label="English">en-US</option>
+                        </options>
+                    </constraints>
+                    <control type="list" format="string"/>
+                </setting>
+                <setting id="lists_cache_duration" type="integer" label="30103" help="">
+                    <level>0</level>
+                    <default>72</default>
+                    <constraints>
+                        <minimum>6</minimum>
+                        <maximum>720</maximum>
+                        <step>6</step>
+                    </constraints>
+                    <control type="slider" format="integer">
+                        <popup>true</popup>
+                    </control>
+                </setting>
+                <setting id="lists_show_item_count" type="boolean" label="30104" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
+                <setting id="lists_debug_logging" type="boolean" label="30105" help="">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                </setting>
+            </group>
+        </category>
     </section>
 </settings>

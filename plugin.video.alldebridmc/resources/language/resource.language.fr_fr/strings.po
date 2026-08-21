@@ -66,3 +66,39 @@ msgstr "Identifiants invalides. Vérifie le nom d'utilisateur et le mot de passe
 msgctxt "#30014"
 msgid "Information"
 msgstr "Informations"
+
+msgctxt "#30100"
+msgid "Lists"
+msgstr "Listes"
+
+msgctxt "#30101"
+msgid "TMDB API key (lists)"
+msgstr "Clé API TMDB (listes)"
+
+msgctxt "#30102"
+msgid "Metadata language"
+msgstr "Langue des métadonnées"
+
+msgctxt "#30103"
+msgid "Cache duration (hours)"
+msgstr "Durée du cache (heures)"
+
+msgctxt "#30104"
+msgid "Show list item count"
+msgstr "Afficher le nombre d'éléments"
+
+msgctxt "#30105"
+msgid "Enable debug logging (lists)"
+msgstr "Activer les logs de débogage (listes)"
+
+msgctxt "#30150"
+msgid "My Lists"
+msgstr "Mes listes"
+
+msgctxt "#30151"
+msgid "Add to a list"
+msgstr "Ajouter à une liste"
+
+msgctxt "#30152"
+msgid "Add to my lists"
+msgstr "Ajouter à mes listes"

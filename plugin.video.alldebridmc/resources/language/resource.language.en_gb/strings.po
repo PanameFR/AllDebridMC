@@ -66,3 +66,39 @@ msgstr ""
 msgctxt "#30014"
 msgid "Information"
 msgstr ""
+
+msgctxt "#30100"
+msgid "Lists"
+msgstr ""
+
+msgctxt "#30101"
+msgid "TMDB API key (lists)"
+msgstr ""
+
+msgctxt "#30102"
+msgid "Metadata language"
+msgstr ""
+
+msgctxt "#30103"
+msgid "Cache duration (hours)"
+msgstr ""
+
+msgctxt "#30104"
+msgid "Show list item count"
+msgstr ""
+
+msgctxt "#30105"
+msgid "Enable debug logging (lists)"
+msgstr ""
+
+msgctxt "#30150"
+msgid "My Lists"
+msgstr ""
+
+msgctxt "#30151"
+msgid "Add to a list"
+msgstr ""
+
+msgctxt "#30152"
+msgid "Add to my lists"
+msgstr ""

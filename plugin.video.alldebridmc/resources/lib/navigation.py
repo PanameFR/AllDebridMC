@@ -21,6 +21,14 @@ ADDON_NAME = ADDON.getAddonInfo('name')
 def route(base_url, handle, params):
     action = params.get('action', 'browse')
 
+    if action.startswith('lists_'):
+        # Fonctionnalite Listes (integree depuis plugin.video.vstreamlists) :
+        # entierement geree dans son propre module, navigation.py ne fait
+        # que lui deleguer - voir lists_routes.py.
+        from resources.lib import lists_routes
+        lists_routes.dispatch(base_url, handle, params)
+        return
+
     if action == 'browse':
         list_directory(base_url, handle, params.get('path', ''))
     elif action == 'play':
@@ -65,11 +73,22 @@ def list_directory(base_url, handle, path):
     xbmcplugin.setContent(handle, _guess_content(entries))
 
     items = [_build_list_item(base_url, entry) for entry in entries]
+    if not path:
+        # A la racine seulement : entree vers la fonctionnalite Listes,
+        # a cote des dossiers reels du serveur (A trier/Films/Series/...).
+        items.insert(0, _build_lists_menu_item(base_url))
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     # Le serveur trie déjà correctement (SxxExx, alphabétique) : on garde
     # cet ordre plutôt que de proposer le tri natif de Kodi.
     xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
     xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=False)
+
+
+def _build_lists_menu_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30150), offscreen=True)
+    list_item.setArt({'icon': 'DefaultVideoPlaylists.png'})
+    url = _build_url(base_url, action='lists_home')
+    return url, list_item, True
 
 
 def _category_label(data):
@@ -183,14 +202,28 @@ def _build_list_item(base_url, entry):
     _apply_metadata(info, entry)
 
     poster = entry.get('poster') or {}
+    context_items = []
     if poster.get('media_type') == 'movie' and poster.get('tmdb_id'):
         info_url = _build_url(
             base_url, action='movie_info', tmdb_id=poster['tmdb_id'],
             title=title, thumb=art.get('thumb', ''),
         )
-        list_item.addContextMenuItems([
+        context_items.append(
             (ADDON.getLocalizedString(30014), 'RunPlugin({0})'.format(info_url))
-        ])
+        )
+    if entry.get('is_dir') and poster.get('tmdb_id'):
+        # Dossier deja associe a une fiche TMDB (film ou racine de serie) :
+        # peut etre relie a une liste, avec redirection locale a la lecture
+        # (voir lists_routes.action_add_local / lists_gui.render_list).
+        add_to_list_url = _build_url(
+            base_url, action='lists_add_local', path=entry['path'],
+            tmdb_id=poster['tmdb_id'], media_type=poster.get('media_type'), title=title,
+        )
+        context_items.append(
+            (ADDON.getLocalizedString(30151), 'RunPlugin({0})'.format(add_to_list_url))
+        )
+    if context_items:
+        list_item.addContextMenuItems(context_items)
 
     if entry.get('is_dir'):
         url = _build_url(base_url, action='browse', path=entry['path'])
