@@ -50,12 +50,19 @@ jamais par son API — aucun impact sur les téléchargements en cours.
 3. **Installer l'extension** : *Extensions → Installer depuis un dépôt →
    AllDebrid Media Center → Extensions vidéo → AllDebrid Media Center →
    Installer*.
+
+   ⚠️ Toujours par cette étape, jamais en installant son zip directement
+   (`repo/plugin.video.alldebridmc/...zip`) : Kodi ne relie l'extension au
+   dépôt que si elle est installée ainsi, sinon les mises à jour futures
+   sont détectées mais jamais appliquées ni notifiées.
 4. Ouvrir les réglages de l'extension et renseigner l'adresse de ton
    serveur, tes identifiants, et le partage SMB (nom, utilisateur, mot de
    passe).
+5. Dans *Réglages → Extensions → Mises à jour des extensions*, choisir
+   *« Installer automatiquement »* (pas seulement « Notifier »).
 
-Les mises à jour suivantes se font automatiquement, plus besoin de repasser
-par un zip.
+Les mises à jour suivantes se font automatiquement (quelques minutes après
+chaque nouvelle version publiée), plus besoin de repasser par un zip.
 
 ## ✅ Prérequis
 
