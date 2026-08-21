@@ -152,10 +152,14 @@ def _apply_metadata(info, entry):
             info.setSeason(season['season_number'])
         if season.get('air_date'):
             info.setPremiered(season['air_date'])
+        if season.get('overview'):
+            info.setPlot(season['overview'])
     elif poster:
         info.setMediaType('movie' if poster.get('media_type') == 'movie' else 'tvshow')
         if poster.get('year'):
             info.setYear(int(poster['year']))
+        if poster.get('overview'):
+            info.setPlot(poster['overview'])
 
 
 def _build_list_item(base_url, entry):
