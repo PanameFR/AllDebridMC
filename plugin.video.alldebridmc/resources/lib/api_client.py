@@ -180,3 +180,14 @@ def clear_watch_progress(path):
 
 def list_watch_progress(status):
     return _get('/api/kodi/watch-progress/list', {'status': status}).get('items', [])
+
+
+def post_watch_progress_vstream(tmdb_id, position, duration, device):
+    _post('/api/kodi/watch-progress', {
+        'source': 'vstream', 'tmdb_id': tmdb_id,
+        'position': position, 'duration': duration, 'device': device,
+    })
+
+
+def clear_watch_progress_vstream(tmdb_id):
+    _post('/api/kodi/watch-progress/clear', {'source': 'vstream', 'tmdb_id': tmdb_id})

@@ -122,8 +122,8 @@ def _build_watch_menu_item(base_url, action, label_id, icon):
     return _build_url(base_url, action=action), list_item, True
 
 
-def build_watch_clear_url(base_url, relative_path):
-    return _build_url(base_url, action='watch_clear', path=relative_path)
+def build_watch_action_url(base_url, action, **params):
+    return _build_url(base_url, action=action, **params)
 
 
 def _category_label(data):

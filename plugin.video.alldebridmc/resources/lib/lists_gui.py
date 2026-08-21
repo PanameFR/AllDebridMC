@@ -129,7 +129,15 @@ def render_list(base_url, handle, list_id, list_data):
                 play_command = 'PlayMedia(%s)' % target_url
         elif vstream_ok:
             if media_type == 'movie':
-                target_url = adapter.movie_url(tmdb_id, title=item.get('title'), poster_url=item.get('poster_url'))
+                # Passe par notre propre addon (pose un repere de suivi
+                # "En cours"/"Historique" avant de rediriger) plutot que
+                # adapter.movie_url() directement - voir watch_progress.py.
+                # Jamais pour une serie : aucune identite fiable ne survit
+                # jusqu'a la lecture reelle d'un episode chez vStream.
+                target_url = _url(
+                    base_url, action='watch_open_vstream_movie', tmdb_id=tmdb_id,
+                    title=item.get('title'), poster_url=item.get('poster_url'),
+                )
             else:
                 target_url = adapter.tvshow_url(tmdb_id, title=item.get('title'), smedia=item.get('smedia'))
             is_folder = True
@@ -186,7 +194,10 @@ def render_search(base_url, handle, results, query):
 
         if vstream_ok:
             if media_type == 'movie':
-                target_url = adapter.movie_url(tmdb_id, title=entry.get('title'))
+                # Voir le meme commentaire dans render_list() plus haut.
+                target_url = _url(
+                    base_url, action='watch_open_vstream_movie', tmdb_id=tmdb_id, title=entry.get('title'),
+                )
             else:
                 target_url = adapter.tvshow_url(tmdb_id, title=entry.get('title'), smedia=entry.get('smedia'))
             is_folder = True
