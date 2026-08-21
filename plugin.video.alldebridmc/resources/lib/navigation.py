@@ -121,7 +121,7 @@ def _list_watch_menu(base_url, handle):
 
 def _build_media_menu_item(base_url):
     list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30259), offscreen=True)
-    list_item.setArt({'icon': 'DefaultFolder.png'})
+    list_item.setArt({'icon': 'DefaultHardDisk.png'})
     url = _build_url(base_url, action='browse', path='')
     return url, list_item, True
 
@@ -135,7 +135,9 @@ def _build_lists_menu_item(base_url):
 
 def _build_watch_home_menu_item(base_url):
     list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30260), offscreen=True)
-    list_item.setArt({'icon': 'DefaultInProgressShows.png'})
+    # Icone differente de son propre enfant "En cours" (DefaultInProgressShows.png)
+    # pour eviter d'avoir deux fois la meme icone a un niveau d'ecart.
+    list_item.setArt({'icon': 'DefaultFavourites.png'})
     url = _build_url(base_url, action='watch_home')
     return url, list_item, True
 

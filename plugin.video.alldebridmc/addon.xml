@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.9.0"
+       version="1.9.1"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -23,7 +23,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played. Playback resume is synced across all your Kodi devices via the server, with dedicated "In progress"/"History" screens for your local library and, read-only, for vStream/Pastebin movies (including those watched directly within vStream) - with real synced resume for vStream movies launched from this addon, via vStream's own local database. Integrates with service.upnext (if installed) to automatically play the next episode of your local library.</description>
         <platform>all</platform>
         <license>own</license>
-        <news>1.9.0 : integration avec service.upnext (l'extension qui propose de jouer l'episode suivant automatiquement, comme sur Netflix). Fonctionne pour ta bibliotheque locale : l'episode suivant est deja connu au moment de lancer la lecture (le dossier de saison est deja trie), donc rien a recalculer. Ne fait rien si service.upnext n'est pas installe. Ne concerne pas le contenu vStream (deja gere par vStream lui-meme).</news>
+        <news>1.9.1 : icones du menu racine et de Visionnage rendues plus distinctes les unes des autres (Medias/Mes Listes/Visionnage se ressemblaient trop). Aucun changement de fonctionnement.</news>
         <assets>
             <icon>icon.png</icon>
         </assets>
