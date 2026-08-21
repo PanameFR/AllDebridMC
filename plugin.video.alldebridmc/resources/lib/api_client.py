@@ -27,6 +27,11 @@ class AuthError(ApiError):
     """401 renvoyé par le serveur — mauvais nom d'utilisateur/mot de passe."""
 
 
+class ValidationError(ApiError):
+    """400 renvoyé par le serveur, avec un message affichable directement
+    à l'utilisateur (ex : élément absent de la source Pastebin)."""
+
+
 def _base_url():
     server = ADDON.getSettingString('server').strip()
     port = ADDON.getSettingInt('port')
@@ -39,6 +44,19 @@ def _auth_header():
     pwd = ADDON.getSettingString('app_password')
     token = base64.b64encode('{0}:{1}'.format(user, pwd).encode('utf-8')).decode('ascii')
     return 'Basic {0}'.format(token)
+
+
+def _raise_for_http_error(exc):
+    if exc.code == 401:
+        raise AuthError('401 Unauthorized') from exc
+    if exc.code == 400:
+        try:
+            body = json.loads(exc.read().decode('utf-8'))
+            message = body.get('error') if isinstance(body, dict) else None
+        except (ValueError, AttributeError):
+            message = None
+        raise ValidationError(message or 'HTTP 400') from exc
+    raise ApiError('HTTP {0}'.format(exc.code)) from exc
 
 
 def _get(path, query=None):
@@ -56,9 +74,29 @@ def _get(path, query=None):
             body = resp.read().decode('utf-8')
         return json.loads(body)
     except urllib.error.HTTPError as exc:
-        if exc.code == 401:
-            raise AuthError('401 Unauthorized') from exc
-        raise ApiError('HTTP {0}'.format(exc.code)) from exc
+        _raise_for_http_error(exc)
+    except (urllib.error.URLError, socket.timeout, ConnectionError) as exc:
+        raise ApiError(str(exc)) from exc
+
+
+def _post(path, data=None):
+    url = _base_url() + path
+    encoded = urllib.parse.urlencode({k: v for k, v in (data or {}).items() if v is not None}).encode('utf-8')
+
+    req = urllib.request.Request(
+        url, data=encoded, method='POST',
+        headers={
+            'Authorization': _auth_header(), 'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            body = resp.read().decode('utf-8')
+        return json.loads(body) if body else None
+    except urllib.error.HTTPError as exc:
+        _raise_for_http_error(exc)
     except (urllib.error.URLError, socket.timeout, ConnectionError) as exc:
         raise ApiError(str(exc)) from exc
 
@@ -73,3 +111,52 @@ def browse(path):
 
 def movie_info(tmdb_id):
     return _get('/api/kodi/movie-info', {'tmdb_id': tmdb_id})
+
+
+# ---- listes (partagées avec la page web /lists du serveur) ----------------
+
+def list_lists():
+    return _get('/api/kodi/lists').get('lists', [])
+
+
+def list_items(list_id):
+    return _get('/api/kodi/lists/{0}'.format(list_id))
+
+
+def create_list(name):
+    return _post('/api/kodi/lists', {'name': name})['id']
+
+
+def rename_list(list_id, name):
+    _post('/api/kodi/lists/{0}/rename'.format(list_id), {'name': name})
+
+
+def delete_list(list_id):
+    _post('/api/kodi/lists/{0}/delete'.format(list_id))
+
+
+def move_list(list_id, direction):
+    _post('/api/kodi/lists/{0}/move'.format(list_id), {'direction': direction})
+
+
+def add_list_item(list_id, media_type, tmdb_id, source, local_path=None):
+    _post('/api/kodi/lists/{0}/items'.format(list_id), {
+        'media_type': media_type, 'tmdb_id': tmdb_id, 'source': source, 'local_path': local_path,
+    })
+
+
+def remove_list_item(list_id, media_type, tmdb_id):
+    _post('/api/kodi/lists/{0}/items/remove'.format(list_id), {'media_type': media_type, 'tmdb_id': tmdb_id})
+
+
+def move_list_item(list_id, media_type, tmdb_id, direction):
+    _post('/api/kodi/lists/{0}/items/move'.format(list_id), {
+        'media_type': media_type, 'tmdb_id': tmdb_id, 'direction': direction,
+    })
+
+
+def search_vstream_catalog(query, categories=None):
+    params = {'q': query}
+    if categories:
+        params['categories'] = ','.join(categories)
+    return _get('/api/kodi/lists/search-vstream', params).get('results', [])

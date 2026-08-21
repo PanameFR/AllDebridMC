@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Point d'entree pour le menu contextuel systeme "Ajouter a mes listes"
+"""Point d'entree pour le menu contextuel systeme "Ajouter a une liste"
 affiche sur les items vStream/Pastebin (voir context.py et l'extension
-kodi.context.item dans addon.xml). Porte depuis
-plugin.video.vstreamlists/resources/lib/context/handler.py, chemins
-d'import mis a jour. Ne touche jamais a vStream lui-meme.
+kodi.context.item dans addon.xml). Les listes vivent cote serveur (voir
+lists_store.py sur le Pi) - l'ajout n'est accepte que si le tmdb_id existe
+reellement dans la source Pastebin lesalkodiques (voir pastebin_catalog.py
+sur le Pi), exactement comme pour la recherche (lists_routes.py) et
+l'ajout depuis la bibliotheque locale (navigation.py).
 """
 import xbmc
 import xbmcaddon
 
-from resources.lib.lists_db import DatabaseManager
-from resources.lib.lists_manager import ListsManager
-from resources.lib.media_manager import MediaManager
+from resources.lib import api_client
 from resources.lib.tmdb_client import TmdbClient
 from resources.lib.vstream_adapter import VStreamPastebinAdapter
 from resources.lib import lists_dialogs as dialogs
@@ -31,10 +31,6 @@ def run(path, title, year, dbtype):
         return
 
     addon = xbmcaddon.Addon()
-    db = DatabaseManager("special://profile/addon_data/%s/" % addon.getAddonInfo("id"))
-    lists_manager = ListsManager(db)
-    media_manager = MediaManager(db)
-
     smedia = adapter.extract_smedia(path)
     media_type = adapter.extract_media_type(path)
     tmdb_id = adapter.extract_tmdb_id(path)
@@ -45,35 +41,22 @@ def run(path, title, year, dbtype):
         xbmc.LOGINFO,
     )
 
-    client = TmdbClient(
-        addon.getSetting("lists_tmdb_api_key"),
-        language=addon.getSetting("lists_metadata_language") or "fr-FR",
-    )
-
-    media = None
-
-    if tmdb_id:
-        # ID deja connu : pas d'ambiguite, on ajoute immediatement et on
-        # enrichit depuis TMDB ensuite (au mieux).
-        if not media_type:
-            media_type = "movie"
-        try:
-            media = client.refresh_metadata(media_type, tmdb_id)
-        except Exception:
-            media = {"media_type": media_type, "tmdb_id": tmdb_id, "title": title, "year": year or None}
-        media["smedia"] = smedia
-    else:
+    if not tmdb_id:
+        # L'URL vStream de cet item n'embarquait pas son tmdb_id : dernier
+        # recours, une recherche TMDB par titre pour l'identifier.
         if not title:
             dialogs.notify(ADDON_NAME, "Impossible d'identifier ce contenu")
             return
-
         if not media_type:
             media_type = "tv" if dbtype == "tvshow" else "movie"
 
+        client = TmdbClient(
+            addon.getSetting("lists_tmdb_api_key"),
+            language=addon.getSetting("lists_metadata_language") or "fr-FR",
+        )
         if not client.has_api_key():
             dialogs.notify(ADDON_NAME, "Aucune cle API TMDB configuree")
             return
-
         try:
             results = (
                 client.search_movie(title, year=year or None)
@@ -87,26 +70,44 @@ def run(path, title, year, dbtype):
         chosen = dialogs.choose_tmdb_result(results, media_type)
         if not chosen:
             return  # l'utilisateur doit choisir explicitement, jamais deviner
-        media = chosen
-        media["smedia"] = smedia or ("film" if media_type == "movie" else "serie")
-        tmdb_id = media["tmdb_id"]
+        tmdb_id = chosen["tmdb_id"]
+        title = chosen.get("title") or title
+    elif not media_type:
+        media_type = "movie"
 
-    target = dialogs.choose_list(lists_manager.get_lists(), heading="Ajouter a mes listes")
+    try:
+        lists = api_client.list_lists()
+    except api_client.ApiError as exc:
+        dialogs.notify(ADDON_NAME, "Impossible de joindre le serveur." if not isinstance(exc, api_client.AuthError)
+                        else "Identifiants serveur invalides (reglages de l'addon).")
+        return
+
+    target = dialogs.choose_list(lists, heading="Ajouter a une liste")
     if target is None:
         return
     if target == "__create__":
         name = dialogs.ask_text("Nom de la nouvelle liste")
         if not name:
             return
-        target = lists_manager.create_list(name)
+        try:
+            target = api_client.create_list(name)
+        except api_client.ApiError:
+            dialogs.notify(ADDON_NAME, "Impossible de creer la liste.")
+            return
 
     xbmc.log(
         "[alldebridmc] lists_context.run: adding media_type=%r tmdb_id=%r title=%r to list_id=%r"
-        % (media_type, tmdb_id, media.get("title") if media else title, target),
+        % (media_type, tmdb_id, title, target),
         xbmc.LOGINFO,
     )
 
-    if media:
-        media_manager.upsert(media)
-    lists_manager.add_item(target, media_type, tmdb_id, source="vstream")
+    try:
+        api_client.add_list_item(target, media_type, tmdb_id, source="vstream")
+    except api_client.ValidationError as exc:
+        dialogs.notify(ADDON_NAME, str(exc))
+        return
+    except api_client.ApiError:
+        dialogs.notify(ADDON_NAME, "Impossible de joindre le serveur.")
+        return
+
     dialogs.notify(ADDON_NAME, "Ajoute a la liste")

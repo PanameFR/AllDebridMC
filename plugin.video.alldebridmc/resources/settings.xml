@@ -117,18 +117,6 @@
                     </constraints>
                     <control type="list" format="string"/>
                 </setting>
-                <setting id="lists_cache_duration" type="integer" label="30103" help="">
-                    <level>0</level>
-                    <default>72</default>
-                    <constraints>
-                        <minimum>6</minimum>
-                        <maximum>720</maximum>
-                        <step>6</step>
-                    </constraints>
-                    <control type="slider" format="integer">
-                        <popup>true</popup>
-                    </control>
-                </setting>
                 <setting id="lists_show_item_count" type="boolean" label="30104" help="">
                     <level>0</level>
                     <default>true</default>
