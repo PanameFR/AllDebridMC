@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.3.0"
+       version="1.4.0"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -18,11 +18,11 @@
     <extension point="xbmc.addon.metadata">
         <summary lang="fr_FR">Accède à ta médiathèque AllDebrid Downloader depuis Kodi</summary>
         <summary lang="en_GB">Browse your AllDebrid Downloader media library from Kodi</summary>
-        <description lang="fr_FR">Parcourt les films et séries de ton serveur AllDebrid Downloader (Raspberry Pi) directement dans Kodi, avec affiches et informations TMDB (saisons, épisodes, résumés), et lit les vidéos en direct depuis le partage réseau SMB. Inclut la fonctionnalité Listes (fusionnée depuis vStream Listes) : crée des listes personnelles mêlant contenus vStream/Pastebin et contenus de ta bibliothèque locale, chacun redirigé automatiquement vers la bonne source à la lecture.</description>
-        <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played.</description>
+        <description lang="fr_FR">Parcourt les films et séries de ton serveur AllDebrid Downloader (Raspberry Pi) directement dans Kodi, avec affiches et informations TMDB (saisons, épisodes, résumés), et lit les vidéos en direct depuis le partage réseau SMB. Inclut la fonctionnalité Listes (fusionnée depuis vStream Listes) : crée des listes personnelles mêlant contenus vStream/Pastebin et contenus de ta bibliothèque locale, chacun redirigé automatiquement vers la bonne source à la lecture. Reprise de lecture synchronisée entre tous tes appareils Kodi via le serveur, avec écrans "En cours"/"Historique" dédiés à ta bibliothèque locale.</description>
+        <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played. Playback resume is synced across all your Kodi devices via the server, with dedicated "In progress"/"History" screens for your local library.</description>
         <platform>all</platform>
         <license>own</license>
-        <news>1.3.0 : les listes vivent maintenant sur le serveur (nouvelle page /lists de l'outil web) et sont partagees avec Kodi - ajouter/retirer un film ou une serie d'un cote se voit immediatement de l'autre. L'ajout via vStream/Pastebin est desormais valide contre la source lesalkodiques (plus besoin que vStream soit installe pour chercher, seulement pour lire).</news>
+        <news>1.4.0 : la reprise de lecture est maintenant synchronisee entre tous tes appareils Kodi via le serveur - arreter un film dans une piece et le reprendre exactement ou tu en etais dans une autre propose maintenant "Reprendre depuis l'arret sur [appareil]". Nouveaux ecrans "En cours"/"Historique" a la racine du menu pour ta bibliotheque locale (equivalent, pour notre addon, de ce que vStream propose deja pour son propre contenu). Nouveau reglage "Nom de cet appareil" dans Parametres > Appareil.</news>
         <assets>
             <icon>icon.png</icon>
         </assets>

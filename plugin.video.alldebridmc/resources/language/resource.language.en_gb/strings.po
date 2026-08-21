@@ -102,3 +102,47 @@ msgstr ""
 msgctxt "#30152"
 msgid "Add to a list"
 msgstr ""
+
+msgctxt "#30200"
+msgid "Device"
+msgstr ""
+
+msgctxt "#30201"
+msgid "Name of this device"
+msgstr ""
+
+msgctxt "#30202"
+msgid "Sync playback resume across devices"
+msgstr ""
+
+msgctxt "#30203"
+msgid "E.g: Living Room TV"
+msgstr ""
+
+msgctxt "#30250"
+msgid "In progress"
+msgstr ""
+
+msgctxt "#30251"
+msgid "History"
+msgstr ""
+
+msgctxt "#30252"
+msgid "Resume playback?"
+msgstr ""
+
+msgctxt "#30253"
+msgid "Resume from where you stopped on {0} ({1})?"
+msgstr ""
+
+msgctxt "#30254"
+msgid "Resume"
+msgstr ""
+
+msgctxt "#30255"
+msgid "From the start"
+msgstr ""
+
+msgctxt "#30256"
+msgid "Remove"
+msgstr ""

@@ -94,6 +94,25 @@
                 </setting>
             </group>
         </category>
+        <category id="device" label="30200" help="">
+            <group id="1">
+                <setting id="device_name" type="string" label="30201" help="30203">
+                    <level>0</level>
+                    <default></default>
+                    <constraints>
+                        <allowempty>false</allowempty>
+                    </constraints>
+                    <control type="edit" format="string">
+                        <heading>30201</heading>
+                    </control>
+                </setting>
+                <setting id="watch_progress_enabled" type="boolean" label="30202" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
+            </group>
+        </category>
         <category id="lists" label="30100" help="">
             <group id="1">
                 <setting id="lists_tmdb_api_key" type="string" label="30101" help="">

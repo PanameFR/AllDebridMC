@@ -29,6 +29,15 @@ def route(base_url, handle, params):
         lists_routes.dispatch(base_url, handle, params)
         return
 
+    if action.startswith('watch_'):
+        # Reprise de lecture synchronisee : ecrans "En cours"/"Historique",
+        # geres dans leur propre module - meme raison que l'import differe
+        # ci-dessus (watch_progress importe navigation en tete, un import
+        # en tete ici creerait un import circulaire).
+        from resources.lib import watch_progress
+        watch_progress.dispatch(base_url, handle, params)
+        return
+
     if action == 'browse':
         list_directory(base_url, handle, params.get('path', ''))
     elif action == 'play':
@@ -57,6 +66,17 @@ def _handle_api_error(exc):
         _notify(ADDON.getLocalizedString(30012), error=True)
 
 
+def _watch_progress_enabled():
+    # Meme garde defensive que _show_count() dans lists_routes.py : un
+    # reglage tout juste ajoute par une mise a jour peut ne pas encore
+    # exister pour une install existante - ne jamais casser le menu
+    # racine pour ca.
+    try:
+        return ADDON.getSettingBool('watch_progress_enabled')
+    except (AttributeError, TypeError):
+        return True
+
+
 # ---- browse ---------------------------------------------------------------
 
 def list_directory(base_url, handle, path):
@@ -72,11 +92,16 @@ def list_directory(base_url, handle, path):
     xbmcplugin.setPluginCategory(handle, _category_label(data))
     xbmcplugin.setContent(handle, _guess_content(entries))
 
-    items = [_build_list_item(base_url, entry) for entry in entries]
+    items = [build_list_item(base_url, entry) for entry in entries]
     if not path:
-        # A la racine seulement : entree vers la fonctionnalite Listes,
-        # a cote des dossiers reels du serveur (A trier/Films/Series/...).
+        # A la racine seulement : entrees vers les fonctionnalites qui ne
+        # correspondent pas a un vrai dossier du serveur (A trier/Films/
+        # Series/...), inserees dans l'ordre inverse d'apparition voulu
+        # puisque chacune s'insere en position 0.
         items.insert(0, _build_lists_menu_item(base_url))
+        if _watch_progress_enabled():
+            items.insert(0, _build_watch_menu_item(base_url, 'watch_history', 30251, 'DefaultRecentlyAddedEpisodes.png'))
+            items.insert(0, _build_watch_menu_item(base_url, 'watch_in_progress', 30250, 'DefaultInProgressShows.png'))
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     # Le serveur trie déjà correctement (SxxExx, alphabétique) : on garde
     # cet ordre plutôt que de proposer le tri natif de Kodi.
@@ -89,6 +114,16 @@ def _build_lists_menu_item(base_url):
     list_item.setArt({'icon': 'DefaultVideoPlaylists.png'})
     url = _build_url(base_url, action='lists_home')
     return url, list_item, True
+
+
+def _build_watch_menu_item(base_url, action, label_id, icon):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(label_id), offscreen=True)
+    list_item.setArt({'icon': icon})
+    return _build_url(base_url, action=action), list_item, True
+
+
+def build_watch_clear_url(base_url, relative_path):
+    return _build_url(base_url, action='watch_clear', path=relative_path)
 
 
 def _category_label(data):
@@ -189,7 +224,7 @@ def _apply_metadata(info, entry):
             info.setPlot(poster['overview'])
 
 
-def _build_list_item(base_url, entry):
+def build_list_item(base_url, entry):
     title = _entry_title(entry)
     list_item = xbmcgui.ListItem(label=title, offscreen=True)
 
@@ -261,6 +296,7 @@ def _build_list_item(base_url, entry):
 
 def play_item(handle, params):
     title = params.get('title', '')
+    relative_path = params.get('path', '')
     list_item = xbmcgui.ListItem(label=title, offscreen=True)
 
     thumb = params.get('thumb')
@@ -283,8 +319,19 @@ def play_item(handle, params):
     if params.get('rating'):
         info.setRating(float(params['rating']))
 
-    list_item.setPath(playback.build_smb_url(params.get('path', '')))
+    # Reprise de lecture synchronisee : import differe (meme raison que
+    # pour lists_routes/watch_progress dans route() - le module importe
+    # navigation en tete, un import en tete ici créerait un cycle).
+    from resources.lib import watch_progress
+    watch_progress.maybe_apply_resume(info, relative_path, title)
+
+    list_item.setPath(playback.build_smb_url(relative_path))
     xbmcplugin.setResolvedUrl(handle, True, list_item)
+
+    # Bloque jusqu'a la fin de la lecture pour suivre la progression - le
+    # script du plugin n'est pas oblige de revenir vite apres
+    # setResolvedUrl (voir le commentaire en tete de watch_progress.py).
+    watch_progress.track_playback(relative_path)
 
 
 # ---- infos film à la demande -------------------------------------------

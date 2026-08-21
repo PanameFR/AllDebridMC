@@ -102,3 +102,47 @@ msgstr "Ajouter à une liste"
 msgctxt "#30152"
 msgid "Add to a list"
 msgstr "Ajouter à une liste"
+
+msgctxt "#30200"
+msgid "Device"
+msgstr "Appareil"
+
+msgctxt "#30201"
+msgid "Name of this device"
+msgstr "Nom de cet appareil"
+
+msgctxt "#30202"
+msgid "Sync playback resume across devices"
+msgstr "Synchroniser la reprise de lecture entre appareils"
+
+msgctxt "#30203"
+msgid "E.g: Living Room TV"
+msgstr "Ex: Tele Salon"
+
+msgctxt "#30250"
+msgid "In progress"
+msgstr "En cours"
+
+msgctxt "#30251"
+msgid "History"
+msgstr "Historique"
+
+msgctxt "#30252"
+msgid "Resume playback?"
+msgstr "Reprendre la lecture ?"
+
+msgctxt "#30253"
+msgid "Resume from where you stopped on {0} ({1})?"
+msgstr "Reprendre depuis l'arrêt sur {0} ({1}) ?"
+
+msgctxt "#30254"
+msgid "Resume"
+msgstr "Reprendre"
+
+msgctxt "#30255"
+msgid "From the start"
+msgstr "Depuis le début"
+
+msgctxt "#30256"
+msgid "Remove"
+msgstr "Retirer"

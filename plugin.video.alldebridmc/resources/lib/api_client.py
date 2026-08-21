@@ -160,3 +160,23 @@ def search_vstream_catalog(query, categories=None):
     if categories:
         params['categories'] = ','.join(categories)
     return _get('/api/kodi/lists/search-vstream', params).get('results', [])
+
+
+# ---- reprise de lecture synchronisée (watch_progress.py sur le serveur) ---
+
+def get_watch_progress(path):
+    return _get('/api/kodi/watch-progress', {'path': path}).get('progress')
+
+
+def post_watch_progress(path, position, duration, device):
+    _post('/api/kodi/watch-progress', {
+        'path': path, 'position': position, 'duration': duration, 'device': device,
+    })
+
+
+def clear_watch_progress(path):
+    _post('/api/kodi/watch-progress/clear', {'path': path})
+
+
+def list_watch_progress(status):
+    return _get('/api/kodi/watch-progress/list', {'status': status}).get('items', [])
