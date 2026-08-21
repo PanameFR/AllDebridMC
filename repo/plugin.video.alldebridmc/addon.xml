@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.alldebridmc"
+       name="AllDebrid Media Center"
+       version="1.0.4"
+       provider-name="jordan">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="main.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="fr_FR">Accède à ta médiathèque AllDebrid Downloader depuis Kodi</summary>
+        <summary lang="en_GB">Browse your AllDebrid Downloader media library from Kodi</summary>
+        <description lang="fr_FR">Parcourt les films et séries de ton serveur AllDebrid Downloader (Raspberry Pi) directement dans Kodi, avec affiches et informations TMDB (saisons, épisodes, résumés), et lit les vidéos en direct depuis le partage réseau SMB.</description>
+        <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share.</description>
+        <platform>all</platform>
+        <license>own</license>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+    </extension>
+</addon>

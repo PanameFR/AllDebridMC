@@ -1,0 +1,68 @@
+# Kodi Media Center language file
+# Addon Name: AllDebrid Media Center
+# Addon id: plugin.video.alldebridmc
+# Addon Provider: jordan
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr_FR\n"
+
+msgctxt "#30000"
+msgid "Server"
+msgstr "Serveur"
+
+msgctxt "#30001"
+msgid "Server address"
+msgstr "Adresse du serveur"
+
+msgctxt "#30002"
+msgid "API port"
+msgstr "Port de l'API"
+
+msgctxt "#30003"
+msgid "Use HTTPS"
+msgstr "Utiliser HTTPS"
+
+msgctxt "#30004"
+msgid "Username"
+msgstr "Nom d'utilisateur"
+
+msgctxt "#30005"
+msgid "Password"
+msgstr "Mot de passe"
+
+msgctxt "#30006"
+msgid "Test connection"
+msgstr "Tester la connexion"
+
+msgctxt "#30007"
+msgid "Network share (SMB)"
+msgstr "Partage réseau (SMB)"
+
+msgctxt "#30008"
+msgid "SMB share name"
+msgstr "Nom du partage SMB"
+
+msgctxt "#30009"
+msgid "SMB username"
+msgstr "Utilisateur SMB"
+
+msgctxt "#30010"
+msgid "SMB password"
+msgstr "Mot de passe SMB"
+
+msgctxt "#30011"
+msgid "Connection successful"
+msgstr "Connexion réussie"
+
+msgctxt "#30012"
+msgid "Could not reach the server. Check your settings."
+msgstr "Impossible de joindre le serveur. Vérifie les réglages."
+
+msgctxt "#30013"
+msgid "Invalid credentials. Check your username and password."
+msgstr "Identifiants invalides. Vérifie le nom d'utilisateur et le mot de passe."
+
+msgctxt "#30014"
+msgid "Information"
+msgstr "Informations"

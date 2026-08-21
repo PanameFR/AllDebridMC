@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addons>
+<addon id="repository.alldebridmc"
+       name="AllDebrid Media Center - Dépôt"
+       version="1.0.2"
+       provider-name="jordan">
+    <extension point="xbmc.addon.repository" name="AllDebrid Media Center">
+        <dir>
+            <info compressed="false">https://raw.githubusercontent.com/PanameFR/AllDebridMC/main/addons.xml</info>
+            <checksum>https://raw.githubusercontent.com/PanameFR/AllDebridMC/main/addons.xml.md5</checksum>
+            <datadir zip="true">https://raw.githubusercontent.com/PanameFR/AllDebridMC/main/repo</datadir>
+        </dir>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="fr_FR">Dépôt auto-hébergé pour l'addon AllDebrid Media Center</summary>
+        <summary lang="en_GB">Self-hosted repository for the AllDebrid Media Center addon</summary>
+        <description lang="fr_FR">Permet à Kodi de détecter et d'installer automatiquement les mises à jour de l'addon AllDebrid Media Center, hébergées sur GitHub. Installé une seule fois, plus jamais besoin de réinstaller un zip à la main.</description>
+        <description lang="en_GB">Lets Kodi automatically detect and install updates to the AllDebrid Media Center addon, hosted on GitHub. Install it once, never sideload a zip by hand again.</description>
+        <platform>all</platform>
+        <license>own</license>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+    </extension>
+</addon>
+<addon id="plugin.video.alldebridmc"
+       name="AllDebrid Media Center"
+       version="1.0.4"
+       provider-name="jordan">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="main.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="fr_FR">Accède à ta médiathèque AllDebrid Downloader depuis Kodi</summary>
+        <summary lang="en_GB">Browse your AllDebrid Downloader media library from Kodi</summary>
+        <description lang="fr_FR">Parcourt les films et séries de ton serveur AllDebrid Downloader (Raspberry Pi) directement dans Kodi, avec affiches et informations TMDB (saisons, épisodes, résumés), et lit les vidéos en direct depuis le partage réseau SMB.</description>
+        <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share.</description>
+        <platform>all</platform>
+        <license>own</license>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+    </extension>
+</addon>
+</addons>
