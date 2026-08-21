@@ -81,7 +81,15 @@ def _guess_content(entries):
     if any(e.get('episode_info') for e in entries):
         return 'episodes'
     if any(e.get('season_info') for e in entries):
-        return 'seasons'
+        # 'seasons' n'est pas un type de contenu officiellement reconnu par
+        # Kodi (contrairement à movies/tvshows/episodes) — le skin Estuary
+        # n'affichait alors pas le résumé des saisons dans le panneau
+        # d'info, même si la donnée était bien présente sur le ListItem
+        # (confirmé en direct : setPlot()/getPlot() concordaient déjà).
+        # 'tvshows' déclenche le même panneau d'info que pour les séries,
+        # avec résumé, et convient tout aussi bien visuellement à une
+        # liste de saisons (affiches + titre + résumé).
+        return 'tvshows'
     if any((e.get('poster') or {}).get('media_type') == 'tv' for e in entries):
         return 'tvshows'
     if any((e.get('poster') or {}).get('media_type') == 'movie' for e in entries):
