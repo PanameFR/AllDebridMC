@@ -12,7 +12,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import api_client, playback
+from resources.lib import api_client, playback, upnext
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
@@ -49,7 +49,7 @@ def route(base_url, handle, params):
     elif action == 'browse':
         list_directory(base_url, handle, params.get('path', ''))
     elif action == 'play':
-        play_item(handle, params)
+        play_item(base_url, handle, params)
     elif action == 'movie_info':
         show_movie_info(handle, params)
     elif action == 'test_connection':
@@ -165,7 +165,10 @@ def list_directory(base_url, handle, path):
     xbmcplugin.setPluginCategory(handle, _category_label(data, path))
     xbmcplugin.setContent(handle, _guess_content(entries))
 
-    items = [build_list_item(base_url, entry) for entry in entries]
+    items = [
+        build_list_item(base_url, entry, entries[i + 1] if i + 1 < len(entries) else None)
+        for i, entry in enumerate(entries)
+    ]
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     # Le serveur trie déjà correctement (SxxExx, alphabétique) : on garde
     # cet ordre plutôt que de proposer le tri natif de Kodi.
@@ -275,7 +278,7 @@ def _apply_metadata(info, entry):
             info.setPlot(poster['overview'])
 
 
-def build_list_item(base_url, entry):
+def build_list_item(base_url, entry, next_entry=None):
     title = _entry_title(entry)
     list_item = xbmcgui.ListItem(label=title, offscreen=True)
 
@@ -327,6 +330,8 @@ def build_list_item(base_url, entry):
     }
     ep = entry.get('episode_info')
     if ep:
+        if poster.get('title'):
+            play_params['showtitle'] = poster['title']
         if ep.get('overview'):
             play_params['plot'] = ep['overview']
         if ep.get('season_number') is not None:
@@ -339,13 +344,31 @@ def build_list_item(base_url, entry):
             play_params['duration'] = ep['runtime']
         if ep.get('vote_average'):
             play_params['rating'] = ep['vote_average']
+        # UpNext (service.upnext) : episode suivant deja connu ici (meme
+        # dossier de saison, deja trie SxxExx par le serveur) - transmis a
+        # travers l'URL de lecture plutot que recalcule au moment de jouer,
+        # pour eviter un aller-retour serveur supplementaire depuis
+        # play_item(). Jamais envoye si l'entree suivante n'est pas un
+        # episode (fin de saison).
+        next_ep = (next_entry or {}).get('episode_info')
+        if next_ep:
+            play_params['next_path'] = next_entry['path']
+            play_params['next_title'] = next_ep.get('name') or ''
+            play_params['next_plot'] = next_ep.get('overview') or ''
+            if next_ep.get('season_number') is not None:
+                play_params['next_season'] = next_ep['season_number']
+            if next_ep.get('episode_number') is not None:
+                play_params['next_episode'] = next_ep['episode_number']
+            next_thumb = (next_ep.get('still_url') or poster.get('poster_url') or '')
+            if next_thumb:
+                play_params['next_thumb'] = next_thumb
     url = _build_url(base_url, **play_params)
     return url, list_item, False
 
 
 # ---- play -------------------------------------------------------------
 
-def play_item(handle, params):
+def play_item(base_url, handle, params):
     title = params.get('title', '')
     relative_path = params.get('path', '')
     list_item = xbmcgui.ListItem(label=title, offscreen=True)
@@ -357,6 +380,8 @@ def play_item(handle, params):
     info = list_item.getVideoInfoTag()
     if title:
         info.setTitle(title)
+    if params.get('showtitle'):
+        info.setTvShowTitle(params['showtitle'])
     if params.get('plot'):
         info.setPlot(params['plot'])
     if params.get('season'):
@@ -379,10 +404,44 @@ def play_item(handle, params):
     list_item.setPath(playback.build_smb_url(relative_path))
     xbmcplugin.setResolvedUrl(handle, True, list_item)
 
+    _notify_upnext(base_url, params)
+
     # Bloque jusqu'a la fin de la lecture pour suivre la progression - le
     # script du plugin n'est pas oblige de revenir vite apres
     # setResolvedUrl (voir le commentaire en tete de watch_progress.py).
     watch_progress.track_playback(relative_path)
+
+
+def _notify_upnext(base_url, params):
+    """Signale l'episode suivant a service.upnext (voir upnext.py) - rien
+    n'est envoye si next_path est absent (fin de saison, ou entree
+    suivante qui n'est pas un episode - voir build_list_item)."""
+    if not params.get('next_path'):
+        return
+
+    next_play_params = {
+        'action': 'play', 'path': params['next_path'],
+        'title': params.get('next_title', ''), 'thumb': params.get('next_thumb', ''),
+        'plot': params.get('next_plot', ''), 'showtitle': params.get('showtitle', ''),
+    }
+    if params.get('next_season'):
+        next_play_params['season'] = params['next_season']
+    if params.get('next_episode'):
+        next_play_params['episode'] = params['next_episode']
+
+    upnext.notify(
+        current={
+            'showtitle': params.get('showtitle', ''), 'season': params.get('season', ''),
+            'episode': params.get('episode', ''), 'title': params.get('title', ''),
+            'plot': params.get('plot', ''), 'thumb': params.get('thumb', ''),
+        },
+        next_={
+            'showtitle': params.get('showtitle', ''), 'season': params.get('next_season', ''),
+            'episode': params.get('next_episode', ''), 'title': params.get('next_title', ''),
+            'plot': params.get('next_plot', ''), 'thumb': params.get('next_thumb', ''),
+            'play_url': _build_url(base_url, **next_play_params),
+        },
+    )
 
 
 # ---- infos film à la demande -------------------------------------------
