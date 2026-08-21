@@ -153,8 +153,11 @@ def action_copy_item(base_url, params):
     existing = next((i for i in items if i["media_type"] == media_type and i["tmdb_id"] == tmdb_id), None)
     source = (existing or {}).get("source") or "vstream"
     local_path = (existing or {}).get("local_path")
+    local_is_dir = (existing or {}).get("local_is_dir")
+    if local_is_dir is None:
+        local_is_dir = True
 
-    LISTS.add_item(target, media_type, tmdb_id, source=source, local_path=local_path)
+    LISTS.add_item(target, media_type, tmdb_id, source=source, local_path=local_path, local_is_dir=local_is_dir)
     _refresh()
 
 
@@ -204,6 +207,7 @@ def action_add_local(base_url, params):
     tmdb_id = _int(params.get("tmdb_id"))
     path = params.get("path")
     title = params.get("title")
+    is_dir = params.get("is_dir") == "1"
 
     if not (media_type and tmdb_id and path):
         dialogs.notify(ADDON_NAME, "Element incomplet, impossible de l'ajouter")
@@ -218,7 +222,7 @@ def action_add_local(base_url, params):
             return
         target = LISTS.create_list(name)
 
-    LISTS.add_item(target, media_type, tmdb_id, source="alldebridmc", local_path=path)
+    LISTS.add_item(target, media_type, tmdb_id, source="alldebridmc", local_path=path, local_is_dir=is_dir)
 
     client = _tmdb_client()
     media = None

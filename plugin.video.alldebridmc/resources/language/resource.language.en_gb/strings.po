@@ -100,5 +100,5 @@ msgid "Add to a list"
 msgstr ""
 
 msgctxt "#30152"
-msgid "Add to my lists"
+msgid "Add to a list"
 msgstr ""

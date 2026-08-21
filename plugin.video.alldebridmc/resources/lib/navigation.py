@@ -211,13 +211,18 @@ def _build_list_item(base_url, entry):
         context_items.append(
             (ADDON.getLocalizedString(30014), 'RunPlugin({0})'.format(info_url))
         )
-    if entry.get('is_dir') and poster.get('tmdb_id'):
-        # Dossier deja associe a une fiche TMDB (film ou racine de serie) :
-        # peut etre relie a une liste, avec redirection locale a la lecture
-        # (voir lists_routes.action_add_local / lists_gui.render_list).
+    if poster.get('tmdb_id'):
+        # Deja associe a une fiche TMDB (film - fichier ou dossier selon
+        # l'organisation de la bibliotheque - ou racine de serie) : peut
+        # etre relie a une liste. is_dir est transmis (pas utilise comme
+        # condition : un film est parfois un fichier direct, parfois un
+        # dossier) pour que la redirection sache plus tard si elle doit
+        # ouvrir un dossier ou lancer la lecture directement (voir
+        # lists_routes.action_add_local / lists_gui.render_list).
         add_to_list_url = _build_url(
             base_url, action='lists_add_local', path=entry['path'],
             tmdb_id=poster['tmdb_id'], media_type=poster.get('media_type'), title=title,
+            is_dir='1' if entry.get('is_dir') else '0',
         )
         context_items.append(
             (ADDON.getLocalizedString(30151), 'RunPlugin({0})'.format(add_to_list_url))

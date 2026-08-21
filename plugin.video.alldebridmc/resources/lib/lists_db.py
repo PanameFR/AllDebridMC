@@ -62,6 +62,13 @@ MIGRATIONS = [
     ALTER TABLE list_items ADD COLUMN source TEXT NOT NULL DEFAULT 'vstream';
     ALTER TABLE list_items ADD COLUMN local_path TEXT;
     """,
+    # 4: un item local peut etre un fichier direct (film range a plat
+    # dans son dossier, sans sous-dossier propre) ou un dossier (racine de
+    # serie, ou film range dans son propre sous-dossier) - il faut le
+    # savoir pour rediriger vers la lecture directe ou vers un parcours de
+    # dossier. Defaut a 1 (dossier) : avant cette migration, un item local
+    # ne pouvait de toute facon etre ajoute que depuis un dossier.
+    "ALTER TABLE list_items ADD COLUMN local_is_dir INTEGER NOT NULL DEFAULT 1;",
 ]
 
 

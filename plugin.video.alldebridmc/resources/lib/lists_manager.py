@@ -98,14 +98,16 @@ class ListsManager(object):
 
     # ---- list items --------------------------------------------------
 
-    def add_item(self, list_id, media_type, tmdb_id, source="vstream", local_path=None):
+    def add_item(self, list_id, media_type, tmdb_id, source="vstream", local_path=None, local_is_dir=True):
         """Idempotent : ajouter un item deja present dans la liste ne fait
         rien (pas de doublon au sein d'une meme liste), mais le meme media
         peut appartenir librement a plusieurs listes.
 
         source: 'vstream' (defaut, lecture via vStream/Pastebin) ou
         'alldebridmc' (lecture via la bibliotheque locale du serveur,
-        local_path est alors le chemin relatif du dossier a parcourir).
+        local_path est alors le chemin relatif a ouvrir - local_is_dir dit
+        si c'est un dossier a parcourir ou un fichier a lire directement,
+        selon comment la bibliotheque est rangee).
         """
         now = datetime.now(timezone.utc).isoformat()
         with self._db.connection() as conn:
@@ -116,9 +118,9 @@ class ListsManager(object):
             try:
                 conn.execute(
                     "INSERT INTO list_items "
-                    "(list_id, media_type, tmdb_id, position, added_at, source, local_path) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (list_id, media_type, tmdb_id, next_pos, now, source, local_path),
+                    "(list_id, media_type, tmdb_id, position, added_at, source, local_path, local_is_dir) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (list_id, media_type, tmdb_id, next_pos, now, source, local_path, int(bool(local_is_dir))),
                 )
                 return True
             except sqlite3.IntegrityError:
@@ -128,9 +130,9 @@ class ListsManager(object):
                 # l'intention explicite de l'utilisateur est de l'utiliser
                 # desormais depuis cette source-la.
                 conn.execute(
-                    "UPDATE list_items SET source = ?, local_path = ? "
+                    "UPDATE list_items SET source = ?, local_path = ?, local_is_dir = ? "
                     "WHERE list_id = ? AND media_type = ? AND tmdb_id = ?",
-                    (source, local_path, list_id, media_type, tmdb_id),
+                    (source, local_path, int(bool(local_is_dir)), list_id, media_type, tmdb_id),
                 )
                 return False
 
@@ -148,12 +150,13 @@ class ListsManager(object):
         now = datetime.now(timezone.utc).isoformat()
         with self._db.transaction() as conn:
             source_row = conn.execute(
-                "SELECT source, local_path FROM list_items "
+                "SELECT source, local_path, local_is_dir FROM list_items "
                 "WHERE list_id = ? AND media_type = ? AND tmdb_id = ?",
                 (from_list_id, media_type, tmdb_id),
             ).fetchone()
             source = source_row["source"] if source_row else "vstream"
             local_path = source_row["local_path"] if source_row else None
+            local_is_dir = source_row["local_is_dir"] if source_row else 1
 
             next_pos = conn.execute(
                 "SELECT COALESCE(MAX(position), -1) + 1 AS p FROM list_items WHERE list_id = ?",
@@ -162,11 +165,11 @@ class ListsManager(object):
             conn.execute(
                 """
                 INSERT INTO list_items
-                    (list_id, media_type, tmdb_id, position, added_at, source, local_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (list_id, media_type, tmdb_id, position, added_at, source, local_path, local_is_dir)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(list_id, media_type, tmdb_id) DO NOTHING
                 """,
-                (to_list_id, media_type, tmdb_id, next_pos, now, source, local_path),
+                (to_list_id, media_type, tmdb_id, next_pos, now, source, local_path, local_is_dir),
             )
             conn.execute(
                 "DELETE FROM list_items WHERE list_id = ? AND media_type = ? AND tmdb_id = ?",
@@ -179,7 +182,7 @@ class ListsManager(object):
             rows = conn.execute(
                 """
                 SELECT i.id AS item_id, i.list_id, i.media_type, i.tmdb_id, i.position,
-                       i.source, i.local_path,
+                       i.source, i.local_path, i.local_is_dir,
                        m.title, m.original_title, m.year, m.overview, m.poster_path,
                        m.backdrop_path, m.genres, m.runtime, m.rating, m.smedia
                 FROM list_items i

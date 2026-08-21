@@ -155,13 +155,36 @@ def render_list(base_url, handle, list_id, lists_manager):
 
         if source == "alldebridmc" and local_path:
             # Ajoute depuis la bibliotheque locale : on rouvre directement
-            # le dossier du serveur (memes films/saisons que la navigation
+            # le contenu du serveur (memes films/saisons que la navigation
             # normale de l'addon), jamais vStream - inconditionnellement,
-            # que vStream soit installe ou non.
-            target_url = _url(base_url, action="browse", path=local_path)
-            is_folder = True
-            play_label = "Parcourir dans la bibliotheque locale"
-            play_command = "Container.Update(%s)" % target_url
+            # que vStream soit installe ou non. Un film peut etre range a
+            # plat (fichier direct, pas de sous-dossier) ou dans son propre
+            # dossier selon la bibliotheque - local_is_dir dit lequel.
+            if item.get("local_is_dir"):
+                target_url = _url(base_url, action="browse", path=local_path)
+                is_folder = True
+                play_label = "Parcourir dans la bibliotheque locale"
+                play_command = "Container.Update(%s)" % target_url
+            else:
+                play_params = dict(
+                    action="play", path=local_path, title=item.get("title") or "",
+                    thumb=TmdbClient.image_url(item.get("poster_path")) or "",
+                )
+                if item.get("overview"):
+                    play_params["plot"] = item["overview"]
+                if item.get("runtime"):
+                    play_params["duration"] = item["runtime"]
+                if item.get("rating") is not None:
+                    play_params["rating"] = item["rating"]
+                target_url = _url(base_url, **play_params)
+                is_folder = False
+                li.setProperty("IsPlayable", "true")
+                play_label = "Lire depuis la bibliotheque locale"
+                # RunPlugin ne met pas le plugin dans un contexte de
+                # resolution de lecture (setResolvedUrl y serait sans
+                # effet) - PlayMedia relance l'addon dans le bon contexte,
+                # exactement comme un clic direct sur l'item.
+                play_command = "PlayMedia(%s)" % target_url
         elif vstream_ok:
             # Pointe l'item directement vers le repertoire de vStream -
             # Kodi y navigue nativement, sans repasser par notre plugin.

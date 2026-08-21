@@ -25,7 +25,7 @@
 </addon>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.2.0"
+       version="1.2.1"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -46,7 +46,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played.</description>
         <platform>all</platform>
         <license>own</license>
-        <news>1.2.0 : integration de la fonctionnalite Listes (vStream Listes fusionne dans AllDebridMC) - listes personnelles melant vStream/Pastebin et bibliotheque locale, avec redirection automatique selon la source de chaque element.</news>
+        <news>1.2.1 : corrige "Ajouter a une liste" absent pour les films ranges a plat (sans sous-dossier) et ajuste la redirection locale (lecture directe si c'est un fichier, parcours si c'est un dossier). Renomme "Ajouter a mes listes" en "Ajouter a une liste".</news>
         <assets>
             <icon>icon.png</icon>
         </assets>
