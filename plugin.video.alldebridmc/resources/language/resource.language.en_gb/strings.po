@@ -146,3 +146,11 @@ msgstr ""
 msgctxt "#30256"
 msgid "Remove"
 msgstr ""
+
+msgctxt "#30257"
+msgid "Sync resume into vStream itself"
+msgstr ""
+
+msgctxt "#30258"
+msgid "Writes the known position into vStream's own local database (its own format, never its code) so its native resume prompt appears on other devices too."
+msgstr ""

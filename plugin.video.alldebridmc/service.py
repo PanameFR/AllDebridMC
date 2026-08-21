@@ -27,8 +27,8 @@ def _poll_and_report(reader):
     if not watch_progress.enabled():
         return
     device = watch_progress.device_name()
-    for tmdb_id, position, duration in reader.poll():
-        watch_progress.report_vstream(tmdb_id, position, duration, device)
+    for tmdb_id, position, duration, resume_key in reader.poll():
+        watch_progress.report_vstream(tmdb_id, position, duration, device, resume_key)
 
 
 class _StopTrigger(xbmc.Player):

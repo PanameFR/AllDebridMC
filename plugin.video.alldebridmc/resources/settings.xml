@@ -111,6 +111,11 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="vstream_resume_write_enabled" type="boolean" label="30257" help="30258">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
             </group>
         </category>
         <category id="lists" label="30100" help="">

@@ -39,6 +39,17 @@ propre dossier de données, jamais celui de vStream) pour ne jamais
 retraiter une ancienne ligne après un redémarrage de Kodi - la retraiter
 ferait régresser un film déjà marqué "vu" côté serveur vers une position
 plus ancienne, plus faible.
+
+seed_resume() est la SEULE écriture de ce module (tout le reste est
+lecture seule) : insère un point de reprise dans la table `resume` d'UN
+AUTRE appareil, avec le même `title` que vStream utilise lui-même (appris
+en le relisant sur l'appareil qui a joué ce contenu en premier - jamais
+reconstruit/deviné ici). vStream, au démarrage de sa propre lecture,
+trouve alors une ligne qu'il croit avoir écrite lui-même et propose SA
+PROPRE reprise native - aucune ligne de son code n'est modifiée, seule sa
+base est complétée avec son propre format. Toujours utilisée avec le
+paramétrage habituel (pas de mode=ro cette fois : c'est la seule fonction
+qui a besoin d'écrire).
 """
 import json
 import sqlite3
@@ -109,12 +120,13 @@ class VStreamDbReader(object):
         _save_state({'last_resume_id': self.last_resume_id, 'last_watched_id': self.last_watched_id})
 
     def poll(self):
-        """Renvoie une liste de (tmdb_id, position, duration). Pour un
-        film marqué vu (table `watched`, pas de point de reprise réel
-        disponible dans ce cas) : position=duration=100.0, seul le fait
-        que ce soit terminé compte, jamais une durée réelle inventée.
-        Liste vide si vStream n'est pas installé, sa base est absente/
-        vide, ou rien de nouveau depuis le dernier appel."""
+        """Renvoie une liste de (tmdb_id, position, duration, resume_key).
+        Pour un film marqué vu (table `watched`, pas de point de reprise
+        réel disponible dans ce cas) : position=duration=100.0 et
+        resume_key=None (rien à corréler, l'entrée n'offre plus jamais de
+        reprise de toute façon une fois "vu"). Liste vide si vStream n'est
+        pas installé, sa base est absente/vide, ou rien de nouveau depuis
+        le dernier appel."""
         path = _resolve_db_path()
         if not path:
             return []
@@ -130,18 +142,18 @@ class VStreamDbReader(object):
             cur = conn.cursor()
 
             cur.execute(
-                "SELECT resume.addon_id, resume.point, resume.total, viewing.tmdb_id "
+                "SELECT resume.addon_id, resume.point, resume.total, resume.title, viewing.tmdb_id "
                 "FROM resume JOIN viewing ON viewing.title_id = resume.title "
                 "WHERE viewing.cat = ? AND resume.addon_id > ? "
                 "ORDER BY resume.addon_id ASC",
                 (MOVIE_CAT, self.last_resume_id),
             )
-            for addon_id, point, total, tmdb_id in cur.fetchall():
+            for addon_id, point, total, title, tmdb_id in cur.fetchall():
                 self.last_resume_id = max(self.last_resume_id, addon_id)
                 changed = True
                 if tmdb_id and str(tmdb_id).isdigit():
                     try:
-                        results.append((int(tmdb_id), float(point), float(total)))
+                        results.append((int(tmdb_id), float(point), float(total), title or None))
                     except (TypeError, ValueError):
                         pass
 
@@ -153,7 +165,7 @@ class VStreamDbReader(object):
                 self.last_watched_id = max(self.last_watched_id, addon_id)
                 changed = True
                 if tmdb_id and str(tmdb_id).isdigit():
-                    results.append((int(tmdb_id), 100.0, 100.0))
+                    results.append((int(tmdb_id), 100.0, 100.0, None))
         except sqlite3.Error:
             pass
         finally:
@@ -163,3 +175,42 @@ class VStreamDbReader(object):
             self.save()
 
         return results
+
+
+def seed_resume(resume_key, position, duration):
+    """Écrit un point de reprise dans la table `resume` LOCALE de vStream,
+    avec sa propre clé de corrélation (apprise ailleurs, jamais construite
+    ici) - pour que SON PROPRE mécanisme de reprise (onAVStarted, code non
+    modifié) le trouve et le propose nativement à l'utilisateur. Seule
+    écriture de ce module - tout le reste est lecture seule. Renvoie True
+    si l'écriture a réussi, False sinon (vStream non installé, base
+    verrouillée, erreur SQL...) - un échec ici ne doit jamais empêcher la
+    lecture de démarrer normalement (sans reprise proposée)."""
+    if not resume_key:
+        return False
+
+    path = _resolve_db_path()
+    if not path:
+        return False
+
+    try:
+        conn = sqlite3.connect(path, timeout=5)
+    except sqlite3.Error:
+        return False
+
+    try:
+        cur = conn.cursor()
+        # Meme sequence que insert_resume() de vStream (resources/lib/db.py) :
+        # supprime l'ancienne ligne pour ce titre avant de reinserer, pour
+        # ne jamais laisser deux points de reprise concurrents.
+        cur.execute("DELETE FROM resume WHERE title = ?", (resume_key,))
+        cur.execute(
+            "INSERT INTO resume (title, hoster, point, total) VALUES (?, ?, ?, ?)",
+            (resume_key, '', float(position), float(duration)),
+        )
+        conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        conn.close()

@@ -182,11 +182,15 @@ def list_watch_progress(status):
     return _get('/api/kodi/watch-progress/list', {'status': status}).get('items', [])
 
 
-def post_watch_progress_vstream(tmdb_id, position, duration, device):
+def post_watch_progress_vstream(tmdb_id, position, duration, device, resume_key=None):
     _post('/api/kodi/watch-progress', {
         'source': 'vstream', 'tmdb_id': tmdb_id,
-        'position': position, 'duration': duration, 'device': device,
+        'position': position, 'duration': duration, 'device': device, 'resume_key': resume_key,
     })
+
+
+def get_watch_progress_vstream(tmdb_id):
+    return _get('/api/kodi/watch-progress', {'source': 'vstream', 'tmdb_id': tmdb_id}).get('progress')
 
 
 def clear_watch_progress_vstream(tmdb_id):

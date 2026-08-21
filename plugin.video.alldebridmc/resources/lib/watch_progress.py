@@ -28,6 +28,19 @@ redirection, jamais la navigation native, et dépendait d'une fenêtre de
 temps fragile. Lire la base est strictement meilleur : plus simple, et
 couvre aussi la navigation native.
 
+Reprise RÉELLEMENT synchronisée pour vStream (pas juste affichée) : quand
+un film vStream est lancé DEPUIS NOTRE ADDON (_action_open_vstream_movie),
+on regarde d'abord si le serveur connaît une position plus récente pour ce
+tmdb_id, et si oui on l'écrit dans la table `resume` LOCALE de vStream
+(vstream_db.seed_resume, avec sa propre clé de corrélation, apprise en la
+relisant sur l'appareil qui a joué ce film en premier - jamais devinée)
+avant de rediriger. Le mécanisme natif de vStream (code non modifié) la
+trouve alors et propose lui-même sa reprise. Ne fonctionne toujours que
+pour les films lancés depuis notre addon (aucun moyen d'agir avant que
+vStream ne prenne la main depuis sa propre navigation), et seulement pour
+un film déjà joué au moins une fois quelque part (sinon la clé de
+corrélation n'est pas encore connue).
+
 Import de navigation en tête (build_list_item) : c'est pour ça que
 navigation.py importe CE module en différé (voir route()/play_item()) et
 jamais l'inverse, pour éviter un cycle.
@@ -37,8 +50,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import api_client, navigation
-from resources.lib.vstream_adapter import VStreamPastebinAdapter
+from resources.lib import api_client, navigation, vstream_db
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
@@ -197,6 +209,11 @@ def dispatch(base_url, handle, params):
         xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
         return
 
+    if action == 'watch_open_vstream_movie':
+        _action_open_vstream_movie(params)
+        xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+        return
+
     _render_list(base_url, handle, action)
 
 
@@ -219,6 +236,43 @@ def _action_clear(params):
         )
         return
     xbmc.executebuiltin('Container.Refresh')
+
+
+def _vstream_resume_write_enabled():
+    try:
+        return ADDON.getSettingBool('vstream_resume_write_enabled')
+    except (AttributeError, TypeError):
+        return True
+
+
+def _action_open_vstream_movie(params):
+    """Point d'entrée commun pour tout film vStream lancé depuis notre
+    addon (Mes Listes/Recherche) : si le serveur connaît une position plus
+    récente pour ce film (peut-être laissée sur un AUTRE appareil), on
+    l'écrit dans la base locale de vStream avant de rediriger, pour que
+    SON PROPRE mécanisme de reprise (code non modifié) la propose - voir
+    la docstring en tête de module. Un échec à n'importe quelle étape ici
+    (serveur injoignable, position inconnue, clé de corrélation pas encore
+    apprise) laisse simplement vStream démarrer normalement, sans reprise
+    - jamais bloquant."""
+    tmdb_id_raw = params.get('tmdb_id', '')
+    if tmdb_id_raw.isdigit() and enabled() and _vstream_resume_write_enabled():
+        try:
+            progress = api_client.get_watch_progress_vstream(int(tmdb_id_raw))
+        except api_client.ApiError:
+            progress = None
+        if progress and progress.get('resume_key'):
+            vstream_db.seed_resume(progress['resume_key'], progress['position'], progress['duration'])
+
+    from resources.lib.vstream_adapter import VStreamPastebinAdapter
+    adapter = VStreamPastebinAdapter()
+    target = adapter.movie_url(
+        params.get('tmdb_id'), title=params.get('title'), poster_url=params.get('poster_url'),
+    )
+    # ",replace" evite d'empiler un ecran intermediaire dans l'historique
+    # retour de Kodi - revenir en arriere depuis vStream doit ramener a
+    # l'ecran d'origine (Mes Listes/Recherche), pas a ce relais.
+    xbmc.executebuiltin('Container.Update(%s,replace)' % target)
 
 
 def _render_list(base_url, handle, action):
@@ -277,12 +331,11 @@ def _apply_visuals(list_item, progress, watched):
 def _build_vstream_item(base_url, entry):
     """ListItem pour un film vStream suivi (jamais navigation.build_list_item,
     qui suppose un chemin local - entry['path'] est None ici). Cible =
-    adapter.movie_url() directement, isFolder=True - meme convention que
+    notre propre action watch_open_vstream_movie (verifie une position plus
+    recente puis ecrit dans la base locale de vStream avant de rediriger -
+    voir _action_open_vstream_movie), isFolder=True - meme convention que
     lists_gui.render_list() pour du contenu vStream (on atterrit sur la
-    liste des hebergeurs, pas directement sur une lecture). Pas de repere
-    a poser ici : le suivi passe par la base locale de vStream (voir
-    service.py/vstream_db.py), qui fonctionne peu importe comment la
-    lecture a ete lancee."""
+    liste des hebergeurs, pas directement sur une lecture)."""
     poster = entry.get('poster') or {}
     title = poster.get('title') or entry.get('name') or '?'
     year = poster.get('year')
@@ -298,8 +351,10 @@ def _build_vstream_item(base_url, entry):
     if year:
         info.setYear(int(year))
 
-    adapter = VStreamPastebinAdapter()
-    url = adapter.movie_url(poster.get('tmdb_id'), title=title, poster_url=poster.get('poster_url'))
+    url = navigation.build_watch_action_url(
+        base_url, 'watch_open_vstream_movie', tmdb_id=poster.get('tmdb_id'),
+        title=title, poster_url=poster.get('poster_url') or '',
+    )
     return url, list_item, True
 
 

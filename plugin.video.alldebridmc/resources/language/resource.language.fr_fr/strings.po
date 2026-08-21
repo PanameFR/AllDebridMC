@@ -146,3 +146,11 @@ msgstr "Depuis le début"
 msgctxt "#30256"
 msgid "Remove"
 msgstr "Retirer"
+
+msgctxt "#30257"
+msgid "Sync resume into vStream itself"
+msgstr "Synchroniser la reprise dans vStream lui-même"
+
+msgctxt "#30258"
+msgid "Writes the known position into vStream's own local database (its own format, never its code) so its native resume prompt appears on other devices too."
+msgstr "Écrit la position connue dans la base locale de vStream lui-même (son propre format, jamais son code) pour que sa propre proposition de reprise apparaisse aussi sur les autres appareils."
