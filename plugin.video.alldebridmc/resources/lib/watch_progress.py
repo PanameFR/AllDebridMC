@@ -13,29 +13,32 @@ s'applique qu'à la phase AVANT cet appel). track_playback() est donc
 appelée à la suite, dans le même script, et bloque jusqu'à la fin de la
 lecture - pattern réel, déjà utilisé par des addons de scrobbling Kodi.
 
-Suivi de lecture vStream (films uniquement, lancés depuis notre propre
-addon) : là, un service.py persistant (nouveau point d'extension
-xbmc.service, à la racine de l'addon) est nécessaire, parce que notre
-script n'est plus actif au moment où la lecture réelle démarre chez
-vStream (plusieurs écrans plus tard, après le choix d'un hébergeur). Voir
-arm_vstream_marker()/consume_vstream_marker()/is_own_smb_path() plus bas -
-le service filtre explicitement notre propre lecture SMB (déjà suivie via
-track_playback ci-dessus) pour ne jamais la rapporter deux fois.
+Suivi de lecture vStream (films uniquement - même limite qu'avant : une
+série n'a que la saison dans la table `viewing` de vStream, jamais
+l'épisode précis, insuffisant pour une reprise fiable) : ne passe PAS par
+un suivi événementiel xbmc.Player comme le local. service.py (nouveau
+point d'extension xbmc.service, à la racine de l'addon) sonde
+PÉRIODIQUEMENT, en lecture seule, la base SQLite locale de vStream (voir
+vstream_db.py) - c'est vStream LUI-MÊME qui y écrit position/tmdb_id à
+chaque arrêt de lecture, que celle-ci ait été lancée depuis notre addon OU
+depuis la navigation native de vStream. Ancienne approche abandonnée
+(reprise Git) : poser un repère avant de rediriger vers vStream, consommé
+par un xbmc.Player dans le service - ne couvrait que notre propre
+redirection, jamais la navigation native, et dépendait d'une fenêtre de
+temps fragile. Lire la base est strictement meilleur : plus simple, et
+couvre aussi la navigation native.
 
 Import de navigation en tête (build_list_item) : c'est pour ça que
 navigation.py importe CE module en différé (voir route()/play_item()) et
 jamais l'inverse, pour éviter un cycle.
 """
-import json
-import time
-import urllib.parse
-
 import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import api_client, navigation, playback
+from resources.lib import api_client, navigation
+from resources.lib.vstream_adapter import VStreamPastebinAdapter
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
@@ -46,19 +49,8 @@ START_TIMEOUT = 45  # secondes max d'attente que la lecture demarre vraiment
 _STATUS_BY_ACTION = {'watch_in_progress': 'in_progress', 'watch_history': 'watched'}
 _LABEL_BY_ACTION = {'watch_in_progress': 30250, 'watch_history': 30251}
 
-# Repere pose juste avant de rediriger vers un film vStream lance depuis
-# notre propre addon (Mes Listes/Recherche/En cours) - consomme par
-# service.py au demarrage de la lecture reelle qui suit, potentiellement
-# plusieurs ecrans plus tard a l'interieur de vStream (choix d'un
-# hebergeur). Fenetre 10000 : mecanisme standard Kodi pour communiquer
-# entre scripts/processus separes au sein de la meme session. Voir la
-# docstring en tete de module pour la limite assumee (navigation vStream
-# native jamais suivie - aucune identite TMDB fiable n'en ressort).
-_VSTREAM_MARKER_PROPERTY = 'script.plugin.video.alldebridmc.pending_vstream_movie'
-VSTREAM_MARKER_TIMEOUT = 300  # secondes : le temps de choisir un hebergeur dans vStream avant lecture reelle
 
-
-def _enabled():
+def enabled():
     try:
         return ADDON.getSettingBool('watch_progress_enabled')
     except (AttributeError, TypeError):
@@ -84,7 +76,7 @@ def _format_time(seconds):
 # ---- reprise avant lecture (appelé depuis navigation.play_item) ----------
 
 def maybe_apply_resume(info, relative_path, title):
-    if not relative_path or not _enabled():
+    if not relative_path or not enabled():
         return
 
     try:
@@ -149,55 +141,7 @@ def _report(relative_path, position, duration, device):
         pass  # best-effort : un heartbeat rate ne doit jamais interrompre la lecture ni notifier
 
 
-# ---- suivi des films vStream lances depuis notre addon (service.py) ------
-
-def arm_vstream_marker(tmdb_id):
-    if not _enabled():
-        return
-    xbmcgui.Window(10000).setProperty(
-        _VSTREAM_MARKER_PROPERTY, json.dumps({'tmdb_id': tmdb_id, 'armed_at': time.time()}),
-    )
-
-
-def consume_vstream_marker(timeout=VSTREAM_MARKER_TIMEOUT):
-    """Lit et efface le repere (une seule consommation possible) - un
-    repere trop vieux (navigation plus longue que `timeout` dans vStream
-    avant lecture reelle, ou repere abandonne puis autre chose regarde
-    ensuite) est ignore plutot que mal attribue a la mauvaise lecture."""
-    window = xbmcgui.Window(10000)
-    raw = window.getProperty(_VSTREAM_MARKER_PROPERTY)
-    if not raw:
-        return None
-    window.clearProperty(_VSTREAM_MARKER_PROPERTY)
-    try:
-        marker = json.loads(raw)
-    except ValueError:
-        return None
-    if time.time() - marker.get('armed_at', 0) > timeout:
-        return None
-    return marker
-
-
-def is_own_smb_path(playing_file):
-    """Vrai si le fichier en cours de lecture vient de NOTRE partage SMB
-    MediaCenter - deja suivi par navigation.play_item()/track_playback(),
-    jamais a rapporter une seconde fois depuis service.py.
-
-    Compare uniquement hote+partage, jamais les identifiants : Kodi peut
-    masquer user:pass dans les infos de lecture exposees (getPlayingFile),
-    ce qui casserait une comparaison de prefixe complet construite nous-
-    memes via playback.build_smb_url()."""
-    if not playing_file or not playing_file.lower().startswith('smb://'):
-        return False
-    try:
-        parsed = urllib.parse.urlsplit(playing_file)
-        server = playback.ADDON.getSettingString('server').strip().lower()
-        share = playback.ADDON.getSettingString('smb_share').strip().lower()
-    except Exception:
-        return False
-    path_first_segment = parsed.path.lstrip('/').split('/', 1)[0].lower()
-    return (parsed.hostname or '') == server and path_first_segment == share
-
+# ---- suivi des films vStream (service.py, sondage de sa base SQLite) -----
 
 def report_vstream(tmdb_id, position, duration, device):
     try:
@@ -207,7 +151,7 @@ def report_vstream(tmdb_id, position, duration, device):
 
 
 def track_playback(relative_path):
-    if not relative_path or not _enabled():
+    if not relative_path or not enabled():
         return
 
     player = _ProgressPlayer()
@@ -253,11 +197,6 @@ def dispatch(base_url, handle, params):
         xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
         return
 
-    if action == 'watch_open_vstream_movie':
-        _action_open_vstream_movie(params)
-        xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
-        return
-
     _render_list(base_url, handle, action)
 
 
@@ -280,27 +219,6 @@ def _action_clear(params):
         )
         return
     xbmc.executebuiltin('Container.Refresh')
-
-
-def _action_open_vstream_movie(params):
-    """Point d'entree commun pour tout film vStream lance depuis notre
-    addon (Mes Listes/Recherche/En cours) : pose le repere PUIS redirige,
-    exactement comme le faisait l'appel direct a adapter.movie_url()
-    auparavant - un seul saut de plus, invisible pour l'utilisateur."""
-    tmdb_id_raw = params.get('tmdb_id', '')
-    if not tmdb_id_raw.isdigit():
-        return
-    tmdb_id = int(tmdb_id_raw)
-
-    arm_vstream_marker(tmdb_id)
-
-    from resources.lib.vstream_adapter import VStreamPastebinAdapter
-    adapter = VStreamPastebinAdapter()
-    target = adapter.movie_url(tmdb_id, title=params.get('title'), poster_url=params.get('poster_url'))
-    # ",replace" evite d'empiler un ecran intermediaire dans l'historique
-    # retour de Kodi - revenir en arriere depuis vStream doit ramener a
-    # l'ecran d'origine (Mes Listes/Recherche/En cours), pas a ce relais.
-    xbmc.executebuiltin('Container.Update(%s,replace)' % target)
 
 
 def _render_list(base_url, handle, action):
@@ -359,10 +277,12 @@ def _apply_visuals(list_item, progress, watched):
 def _build_vstream_item(base_url, entry):
     """ListItem pour un film vStream suivi (jamais navigation.build_list_item,
     qui suppose un chemin local - entry['path'] est None ici). Cible =
-    notre propre action watch_open_vstream_movie (pose le repere puis
-    redirige), isFolder=True - meme convention que lists_gui.render_list()
-    pour du contenu vStream (on atterrit sur la liste des hebergeurs, pas
-    directement sur une lecture)."""
+    adapter.movie_url() directement, isFolder=True - meme convention que
+    lists_gui.render_list() pour du contenu vStream (on atterrit sur la
+    liste des hebergeurs, pas directement sur une lecture). Pas de repere
+    a poser ici : le suivi passe par la base locale de vStream (voir
+    service.py/vstream_db.py), qui fonctionne peu importe comment la
+    lecture a ete lancee."""
     poster = entry.get('poster') or {}
     title = poster.get('title') or entry.get('name') or '?'
     year = poster.get('year')
@@ -378,10 +298,8 @@ def _build_vstream_item(base_url, entry):
     if year:
         info.setYear(int(year))
 
-    url = navigation.build_watch_action_url(
-        base_url, 'watch_open_vstream_movie', tmdb_id=poster.get('tmdb_id'),
-        title=title, poster_url=poster.get('poster_url') or '',
-    )
+    adapter = VStreamPastebinAdapter()
+    url = adapter.movie_url(poster.get('tmdb_id'), title=title, poster_url=poster.get('poster_url'))
     return url, list_item, True
 
 

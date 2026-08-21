@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version extension" src="https://img.shields.io/badge/AllDebridMC-1.5.0-2ea3f2">
+  <img alt="Version extension" src="https://img.shields.io/badge/AllDebridMC-1.6.0-2ea3f2">
   <img alt="Version depot" src="https://img.shields.io/badge/Repository-1.0.2-2ea3f2">
 </p>
 

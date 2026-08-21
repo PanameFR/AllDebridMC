@@ -1,87 +1,60 @@
 # -*- coding: utf-8 -*-
-"""Service Kodi persistant (xbmc.service, demarre avec Kodi) : suit
-UNIQUEMENT la lecture de films vStream/Pastebin lancee depuis notre propre
-addon (Mes Listes/Recherche/En cours - voir
-resources/lib/watch_progress.py::arm_vstream_marker), jamais la navigation
-native de vStream - aucune identite TMDB fiable n'en ressort une fois la
-lecture reelle demarree (verifie en lisant le code source de vStream avant
-de construire ceci, voir la docstring de watch_progress.py). La lecture
-MediaCenter est deja suivie par navigation.play_item()/track_playback(),
-qui reste actif dans le processus du script le temps de la lecture - ce
-service l'ignore explicitement (watch_progress.is_own_smb_path) pour ne
-jamais la rapporter deux fois.
+"""Service Kodi persistant (xbmc.service, démarre avec Kodi).
+
+Sonde PÉRIODIQUEMENT (pas événementiel) la base SQLite locale de vStream,
+en lecture seule (voir resources/lib/vstream_db.py), pour détecter les
+nouveaux points de reprise/films terminés que vStream y enregistre
+LUI-MÊME à l'arrêt de chaque lecture - fonctionne aussi bien pour du
+contenu lancé depuis notre addon que depuis la navigation native de
+vStream, puisque c'est vStream qui écrit ces données dans les deux cas,
+jamais nous (aucune modification de son code, aucune ligne de sa base
+n'est jamais écrite depuis ce service).
+
+La lecture MediaCenter est suivie séparément et en temps réel par
+navigation.play_item()/track_playback() (suivi événementiel xbmc.Player,
+dans le processus du script de lecture, cf. resources/lib/watch_progress.py) -
+aucun rapport en double possible, ce service ne lit jamais que la base de
+vStream, jamais nos propres chemins SMB.
 """
 import xbmc
 
-from resources.lib import watch_progress
+from resources.lib import vstream_db, watch_progress
+
+POLL_INTERVAL = 30  # secondes entre deux sondages periodiques de secours
 
 
-class _VStreamProgressPlayer(xbmc.Player):
-    def __init__(self):
-        super(_VStreamProgressPlayer, self).__init__()
-        self.tmdb_id = None
-        self.stopped = False
+def _poll_and_report(reader):
+    if not watch_progress.enabled():
+        return
+    device = watch_progress.device_name()
+    for tmdb_id, position, duration in reader.poll():
+        watch_progress.report_vstream(tmdb_id, position, duration, device)
 
-    def onAVStarted(self):
-        # Reinitialise a chaque nouvelle lecture, jamais de fuite d'un
-        # tmdb_id suivi lors d'une session PRECEDENTE vers celle-ci.
-        self.stopped = False
-        self.tmdb_id = None
 
-        try:
-            playing_file = self.getPlayingFile()
-        except Exception:
-            return
+class _StopTrigger(xbmc.Player):
+    """Ne sert qu'a declencher un sondage immediat des qu'une lecture
+    s'arrete, en plus du sondage periodique de secours - vStream vient de
+    finir d'ecrire dans sa base a cet instant precis (cPlayer._setWatched
+    dans son propre code, appelee depuis onPlayBackStopped/Ended)."""
 
-        if watch_progress.is_own_smb_path(playing_file):
-            return  # deja suivi par track_playback() cote script de lecture
-
-        marker = watch_progress.consume_vstream_marker()
-        if marker:
-            self.tmdb_id = marker.get('tmdb_id')
-        # Sinon : navigation native de vStream, ou tout autre contenu -
-        # honnetement non identifiable, on n'essaie pas de deviner.
+    def __init__(self, reader):
+        super(_StopTrigger, self).__init__()
+        self.reader = reader
 
     def onPlayBackStopped(self):
-        self.stopped = True
+        _poll_and_report(self.reader)
 
     def onPlayBackEnded(self):
-        self.stopped = True
-
-    def onPlayBackError(self):
-        self.stopped = True
+        _poll_and_report(self.reader)
 
 
 def run():
-    player = _VStreamProgressPlayer()
+    reader = vstream_db.VStreamDbReader()
+    player = _StopTrigger(reader)
     monitor = xbmc.Monitor()
-    last_position, last_duration = 0.0, 0.0
-    reported_stop_for = None  # evite de renvoyer plusieurs fois le meme rapport final
 
-    while not monitor.waitForAbort(watch_progress.HEARTBEAT_INTERVAL):
-        if player.tmdb_id is None:
-            continue
-
-        if player.stopped:
-            if last_duration and player.tmdb_id != reported_stop_for:
-                watch_progress.report_vstream(
-                    player.tmdb_id, last_position, last_duration, watch_progress.device_name(),
-                )
-                reported_stop_for = player.tmdb_id
-            continue
-
-        if not player.isPlaying():
-            continue
-
-        try:
-            last_position, last_duration = player.getTime(), player.getTotalTime()
-        except Exception:
-            continue
-
-        watch_progress.report_vstream(
-            player.tmdb_id, last_position, last_duration, watch_progress.device_name(),
-        )
-        reported_stop_for = None
+    while not monitor.waitForAbort(POLL_INTERVAL):
+        _poll_and_report(reader)
 
 
 if __name__ == '__main__':
