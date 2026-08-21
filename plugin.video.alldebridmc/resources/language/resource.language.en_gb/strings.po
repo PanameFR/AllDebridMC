@@ -154,3 +154,11 @@ msgstr ""
 msgctxt "#30258"
 msgid "Writes the known position into vStream's own local database (its own format, never its code) so its native resume prompt appears on other devices too."
 msgstr ""
+
+msgctxt "#30259"
+msgid "Media"
+msgstr ""
+
+msgctxt "#30260"
+msgid "Viewing"
+msgstr ""

@@ -19,7 +19,7 @@ ADDON_NAME = ADDON.getAddonInfo('name')
 
 
 def route(base_url, handle, params):
-    action = params.get('action', 'browse')
+    action = params.get('action', 'root')
 
     if action.startswith('lists_'):
         # Fonctionnalite Listes (integree depuis plugin.video.vstreamlists) :
@@ -27,6 +27,12 @@ def route(base_url, handle, params):
         # que lui deleguer - voir lists_routes.py.
         from resources.lib import lists_routes
         lists_routes.dispatch(base_url, handle, params)
+        return
+
+    if action == 'watch_home':
+        # Simple menu de navigation (En cours/Historique) - pas de donnees
+        # a aller chercher, reste ici plutot que dans watch_progress.py.
+        _list_watch_menu(base_url, handle)
         return
 
     if action.startswith('watch_'):
@@ -38,7 +44,9 @@ def route(base_url, handle, params):
         watch_progress.dispatch(base_url, handle, params)
         return
 
-    if action == 'browse':
+    if action == 'root':
+        _list_root_menu(base_url, handle)
+    elif action == 'browse':
         list_directory(base_url, handle, params.get('path', ''))
     elif action == 'play':
         play_item(handle, params)
@@ -77,42 +85,58 @@ def _watch_progress_enabled():
         return True
 
 
-# ---- browse ---------------------------------------------------------------
+# ---- menu racine ------------------------------------------------------
 
-def list_directory(base_url, handle, path):
-    try:
-        data = api_client.browse(path)
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        xbmcplugin.endOfDirectory(handle, succeeded=False)
-        return
+def _list_root_menu(base_url, handle):
+    """Racine de l'addon : uniquement des dossiers synthetiques (jamais
+    d'appel serveur ici) - Medias (la vraie arborescence du serveur,
+    anciennement affichee directement a la racine), Mes Listes, et
+    Visionnage (En cours/Historique) si active."""
+    xbmcplugin.setPluginCategory(handle, ADDON_NAME)
+    xbmcplugin.setContent(handle, 'files')
 
-    entries = [e for e in data.get('entries', []) if e.get('is_dir') or e.get('is_video')]
+    items = [_build_media_menu_item(base_url), _build_lists_menu_item(base_url)]
+    if _watch_progress_enabled():
+        items.append(_build_watch_home_menu_item(base_url))
 
-    xbmcplugin.setPluginCategory(handle, _category_label(data))
-    xbmcplugin.setContent(handle, _guess_content(entries))
-
-    items = [build_list_item(base_url, entry) for entry in entries]
-    if not path:
-        # A la racine seulement : entrees vers les fonctionnalites qui ne
-        # correspondent pas a un vrai dossier du serveur (A trier/Films/
-        # Series/...), inserees dans l'ordre inverse d'apparition voulu
-        # puisque chacune s'insere en position 0.
-        items.insert(0, _build_lists_menu_item(base_url))
-        if _watch_progress_enabled():
-            items.insert(0, _build_watch_menu_item(base_url, 'watch_history', 30251, 'DefaultRecentlyAddedEpisodes.png'))
-            items.insert(0, _build_watch_menu_item(base_url, 'watch_in_progress', 30250, 'DefaultInProgressShows.png'))
     xbmcplugin.addDirectoryItems(handle, items, len(items))
-    # Le serveur trie déjà correctement (SxxExx, alphabétique) : on garde
-    # cet ordre plutôt que de proposer le tri natif de Kodi.
     xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
-    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=False)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
+
+
+def _list_watch_menu(base_url, handle):
+    """Sous-menu Visionnage : En cours / Historique - simple aiguillage,
+    aucune donnee a aller chercher ici (voir watch_progress.dispatch)."""
+    xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30260))
+    xbmcplugin.setContent(handle, 'files')
+
+    items = [
+        _build_watch_menu_item(base_url, 'watch_in_progress', 30250, 'DefaultInProgressShows.png'),
+        _build_watch_menu_item(base_url, 'watch_history', 30251, 'DefaultRecentlyAddedEpisodes.png'),
+    ]
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
+
+
+def _build_media_menu_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30259), offscreen=True)
+    list_item.setArt({'icon': 'DefaultFolder.png'})
+    url = _build_url(base_url, action='browse', path='')
+    return url, list_item, True
 
 
 def _build_lists_menu_item(base_url):
     list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30150), offscreen=True)
     list_item.setArt({'icon': 'DefaultVideoPlaylists.png'})
     url = _build_url(base_url, action='lists_home')
+    return url, list_item, True
+
+
+def _build_watch_home_menu_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30260), offscreen=True)
+    list_item.setArt({'icon': 'DefaultInProgressShows.png'})
+    url = _build_url(base_url, action='watch_home')
     return url, list_item, True
 
 
@@ -126,7 +150,34 @@ def build_watch_action_url(base_url, action, **params):
     return _build_url(base_url, action=action, **params)
 
 
-def _category_label(data):
+# ---- browse (Medias) ----------------------------------------------------
+
+def list_directory(base_url, handle, path):
+    try:
+        data = api_client.browse(path)
+    except api_client.ApiError as exc:
+        _handle_api_error(exc)
+        xbmcplugin.endOfDirectory(handle, succeeded=False)
+        return
+
+    entries = [e for e in data.get('entries', []) if e.get('is_dir') or e.get('is_video')]
+
+    xbmcplugin.setPluginCategory(handle, _category_label(data, path))
+    xbmcplugin.setContent(handle, _guess_content(entries))
+
+    items = [build_list_item(base_url, entry) for entry in entries]
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    # Le serveur trie déjà correctement (SxxExx, alphabétique) : on garde
+    # cet ordre plutôt que de proposer le tri natif de Kodi.
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=False)
+
+
+def _category_label(data, path):
+    if not path:
+        # Racine du vrai serveur (ecran "Medias") - le fil d'Ariane du
+        # serveur est vide a ce niveau, jamais tres parlant comme categorie.
+        return ADDON.getLocalizedString(30259)
     breadcrumb = data.get('breadcrumb') or []
     return breadcrumb[-1]['name'] if breadcrumb else ADDON_NAME
 

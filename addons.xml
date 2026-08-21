@@ -25,7 +25,7 @@
 </addon>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.7.0"
+       version="1.8.0"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -47,7 +47,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played. Playback resume is synced across all your Kodi devices via the server, with dedicated "In progress"/"History" screens for your local library and, read-only, for vStream/Pastebin movies (including those watched directly within vStream) - with real synced resume for vStream movies launched from this addon, via vStream's own local database.</description>
         <platform>all</platform>
         <license>own</license>
-        <news>1.7.0 : les films vStream lances depuis cet addon (Mes Listes, Recherche, En cours) beneficient maintenant d'une VRAIE reprise synchronisee entre appareils. Quand le serveur connait une position plus recente (laissee sur un autre appareil), on l'ecrit dans la base locale de vStream sur CET appareil, avec sa propre cle de correlation (jamais son code modifie) - son propre mecanisme de reprise natif la trouve alors et la propose. Ne fonctionne que pour un film deja joue au moins une fois quelque part, et seulement lance depuis notre addon (toujours impossible d'agir avant que vStream prenne la main depuis sa propre navigation). Nouveau reglage "Synchroniser la reprise dans vStream lui-meme" (Parametres > Appareil) pour desactiver cette ecriture specifiquement si besoin, en gardant le suivi lecture seule.</news>
+        <news>1.8.0 : reorganisation du menu racine, devenu trop charge - "Medias" (toute l'arborescence du serveur : Films/Series/A trier/...), "Mes Listes" et "Visionnage" (En cours + Historique regroupes) remplacent l'ancien affichage a plat de tout a la racine. Aucun changement de fonctionnement, uniquement la navigation.</news>
         <assets>
             <icon>icon.png</icon>
         </assets>
