@@ -159,7 +159,15 @@ class VStreamPastebinAdapter(object):
         # getHosterList() (voir docstring du module). sMovieTitle sert a
         # l'affichage des libelles de saison et de repli si idTMDB ne
         # matche plus rien (ex: contenu retire de Pastebin depuis).
-        site_url = "vstreamlists&sMedia=%s&idTMDB=%s" % (smedia, tmdb_id)
+        # sTitle DOIT etre present dans siteUrl (meme si idTMDB court-
+        # circuite son propre usage ici) : showSerieSaisons() tolere son
+        # absence, mais chaque saison qu'il genere copie ce meme siteUrl en
+        # y ajoutant juste sSaison=NN - et showEpisodesLinks(), appele au
+        # clic sur une saison, y accede en dict simple sans repli
+        # (aParams['sTitle']) et plante (KeyError) si absent. Confirme en
+        # conditions reelles : les saisons s'affichaient mais cliquer sur
+        # l'une d'elles echouait toujours avec cette KeyError.
+        site_url = "vstreamlists&sMedia=%s&idTMDB=%s&sTitle=%s" % (smedia, tmdb_id, title)
         url = self.build_vstream_url(
             "showSerieSaisons", siteUrl=site_url, sMovieTitle=title
         )
