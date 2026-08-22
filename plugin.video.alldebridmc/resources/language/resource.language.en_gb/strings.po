@@ -162,3 +162,59 @@ msgstr ""
 msgctxt "#30260"
 msgid "Viewing"
 msgstr ""
+
+msgctxt "#30300"
+msgid "Backup"
+msgstr ""
+
+msgctxt "#30301"
+msgid "Preparing the backup"
+msgstr ""
+
+msgctxt "#30302"
+msgid "Cancelled."
+msgstr ""
+
+msgctxt "#30303"
+msgid "Sending to the server..."
+msgstr ""
+
+msgctxt "#30304"
+msgid "Downloading the backup..."
+msgstr ""
+
+msgctxt "#30305"
+msgid "Restoring files..."
+msgstr ""
+
+msgctxt "#30306"
+msgid "Restoring settings..."
+msgstr ""
+
+msgctxt "#30307"
+msgid "Finishing up..."
+msgstr ""
+
+msgctxt "#30308"
+msgid "Back up now"
+msgstr ""
+
+msgctxt "#30309"
+msgid "Back up Kodi now and send it to the server?"
+msgstr ""
+
+msgctxt "#30310"
+msgid "Backup sent to the server."
+msgstr ""
+
+msgctxt "#30311"
+msgid "Restoring this backup will overwrite this device's settings, addons and data. Continue?"
+msgstr ""
+
+msgctxt "#30312"
+msgid "Restart recommended"
+msgstr ""
+
+msgctxt "#30313"
+msgid "Restart Kodi now to apply all the changes?"
+msgstr ""

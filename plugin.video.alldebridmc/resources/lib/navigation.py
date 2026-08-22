@@ -7,12 +7,14 @@ qu'afficher ce qu'on lui donne, jamais de logique de correspondance TMDB
 ici (elle vit uniquement côté outil, pour rester fusionnel avec lui).
 """
 import urllib.parse
+from datetime import datetime
 
+import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import api_client, playback, upnext
+from resources.lib import api_client, kodi_backup, playback, upnext
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
@@ -54,6 +56,12 @@ def route(base_url, handle, params):
         show_movie_info(handle, params)
     elif action == 'test_connection':
         test_connection(handle)
+    elif action == 'backup_home':
+        _list_backup_menu(base_url, handle)
+    elif action == 'backup_run':
+        _run_backup_action(handle)
+    elif action == 'backup_restore':
+        _run_restore_action(handle, params.get('name', ''))
     else:
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
@@ -98,6 +106,7 @@ def _list_root_menu(base_url, handle):
     items = [_build_media_menu_item(base_url), _build_lists_menu_item(base_url)]
     if _watch_progress_enabled():
         items.append(_build_watch_home_menu_item(base_url))
+    items.append(_build_backup_menu_item(base_url))
 
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
@@ -150,6 +159,103 @@ def _build_watch_menu_item(base_url, action, label_id, icon):
 
 def build_watch_action_url(base_url, action, **params):
     return _build_url(base_url, action=action, **params)
+
+
+def _build_backup_menu_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30300), offscreen=True)
+    # Icone differente des 3 autres items racine (HardDisk/VideoPlaylists/
+    # Favourites) - meme logique que pour Visionnage/En cours plus haut.
+    list_item.setArt({'icon': 'DefaultNetwork.png'})
+    url = _build_url(base_url, action='backup_home')
+    return url, list_item, True
+
+
+# ---- sauvegarde/restauration Kodi --------------------------------------
+
+def _list_backup_menu(base_url, handle):
+    """Dossier Sauvegarde : en premier une action "Sauvegarder maintenant",
+    puis une entree par sauvegarde deja presente sur le serveur (voir
+    kodi_backup.list_backups) - cliquer une entree lance sa restauration.
+    Jamais de sous-dossier ici, tout est action directe (comme
+    test_connection), pas une vraie navigation."""
+    xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30300))
+    xbmcplugin.setContent(handle, 'files')
+
+    items = [_build_backup_run_item(base_url)]
+
+    try:
+        backups = kodi_backup.list_backups()
+    except api_client.ApiError as exc:
+        _handle_api_error(exc)
+        backups = []
+
+    for backup in backups:
+        items.append(_build_backup_restore_item(base_url, backup))
+
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
+
+
+def _build_backup_run_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30308), offscreen=True)
+    list_item.setArt({'icon': 'DefaultAddSource.png'})
+    url = _build_url(base_url, action='backup_run')
+    return url, list_item, False
+
+
+def _build_backup_restore_item(base_url, backup):
+    label = '{0} — {1} — {2}'.format(
+        backup.get('device') or '?',
+        _format_backup_date(backup.get('created_at')),
+        backup.get('size_human') or '',
+    )
+    list_item = xbmcgui.ListItem(label=label, offscreen=True)
+    list_item.setArt({'icon': 'DefaultAddonsUpdates.png'})
+    url = _build_url(base_url, action='backup_restore', name=backup.get('name', ''))
+    return url, list_item, False
+
+
+def _format_backup_date(iso_string):
+    if not iso_string:
+        return '?'
+    try:
+        parsed = datetime.fromisoformat(iso_string)
+    except ValueError:
+        return iso_string
+    return parsed.strftime('%d/%m/%Y %H:%M')
+
+
+def _run_backup_action(handle):
+    confirmed = xbmcgui.Dialog().yesno(
+        ADDON.getLocalizedString(30300), ADDON.getLocalizedString(30309),
+    )
+    if confirmed:
+        progress = xbmcgui.DialogProgress()
+        success, error = kodi_backup.run_backup(progress)
+        if success:
+            _notify(ADDON.getLocalizedString(30310), error=False)
+        elif error:
+            _notify(error, error=True)
+    xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+
+
+def _run_restore_action(handle, backup_name):
+    if backup_name:
+        confirmed = xbmcgui.Dialog().yesno(
+            ADDON.getLocalizedString(30300), ADDON.getLocalizedString(30311),
+        )
+        if confirmed:
+            progress = xbmcgui.DialogProgress()
+            success, error = kodi_backup.run_restore(progress, backup_name)
+            if success:
+                if xbmcgui.Dialog().yesno(
+                    ADDON.getLocalizedString(30312), ADDON.getLocalizedString(30313)
+                ):
+                    xbmc.executebuiltin('Quit')
+            elif error:
+                _notify(error, error=True)
+    xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
 
 # ---- browse (Medias) ----------------------------------------------------

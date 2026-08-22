@@ -162,3 +162,59 @@ msgstr "Médias"
 msgctxt "#30260"
 msgid "Viewing"
 msgstr "Visionnage"
+
+msgctxt "#30300"
+msgid "Backup"
+msgstr "Sauvegarde"
+
+msgctxt "#30301"
+msgid "Preparing the backup"
+msgstr "Préparation de la sauvegarde"
+
+msgctxt "#30302"
+msgid "Cancelled."
+msgstr "Annulé."
+
+msgctxt "#30303"
+msgid "Sending to the server..."
+msgstr "Envoi vers le serveur..."
+
+msgctxt "#30304"
+msgid "Downloading the backup..."
+msgstr "Téléchargement de la sauvegarde..."
+
+msgctxt "#30305"
+msgid "Restoring files..."
+msgstr "Restauration des fichiers..."
+
+msgctxt "#30306"
+msgid "Restoring settings..."
+msgstr "Restauration des paramètres..."
+
+msgctxt "#30307"
+msgid "Finishing up..."
+msgstr "Finalisation..."
+
+msgctxt "#30308"
+msgid "Back up now"
+msgstr "Sauvegarder maintenant"
+
+msgctxt "#30309"
+msgid "Back up Kodi now and send it to the server?"
+msgstr "Sauvegarder Kodi maintenant et l'envoyer sur le serveur ?"
+
+msgctxt "#30310"
+msgid "Backup sent to the server."
+msgstr "Sauvegarde envoyée sur le serveur."
+
+msgctxt "#30311"
+msgid "Restoring this backup will overwrite this device's settings, addons and data. Continue?"
+msgstr "Restaurer cette sauvegarde va écraser les paramètres, addons et données de cet appareil. Continuer ?"
+
+msgctxt "#30312"
+msgid "Restart recommended"
+msgstr "Redémarrage recommandé"
+
+msgctxt "#30313"
+msgid "Restart Kodi now to apply all the changes?"
+msgstr "Redémarrer Kodi maintenant pour appliquer tous les changements ?"

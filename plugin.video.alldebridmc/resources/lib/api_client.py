@@ -195,3 +195,64 @@ def get_watch_progress_vstream(tmdb_id):
 
 def clear_watch_progress_vstream(tmdb_id):
     _post('/api/kodi/watch-progress/clear', {'source': 'vstream', 'tmdb_id': tmdb_id})
+
+
+# ---- sauvegarde/restauration Kodi (kodi_backup.py sur le serveur) ---------
+
+BACKUP_TIMEOUT = 60  # secondes - un chunk peut prendre du temps sur un reseau lent
+
+
+def backup_upload_chunk(session_id, device, chunk_index, is_last, data):
+    query = urllib.parse.urlencode({
+        'session_id': session_id, 'device': device,
+        'chunk_index': chunk_index, 'is_last': '1' if is_last else '0',
+    })
+    url = _base_url() + '/api/kodi/backup/upload?' + query
+
+    req = urllib.request.Request(
+        url, data=data, method='POST',
+        headers={
+            'Authorization': _auth_header(), 'Accept': 'application/json',
+            'Content-Type': 'application/octet-stream',
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=BACKUP_TIMEOUT) as resp:
+            body = resp.read().decode('utf-8')
+        return json.loads(body) if body else None
+    except urllib.error.HTTPError as exc:
+        _raise_for_http_error(exc)
+    except (urllib.error.URLError, socket.timeout, ConnectionError) as exc:
+        raise ApiError(str(exc)) from exc
+
+
+def backup_list():
+    return _get('/api/kodi/backup/list').get('backups', [])
+
+
+def backup_download(name, dest_path, progress_callback=None):
+    """Telecharge en flux (lecture par blocs, jamais tout charge en memoire
+    d'un coup - contrairement a l'ecriture, lire une reponse HTTP par blocs
+    est un usage stdlib standard) vers dest_path (chemin reel deja resolu
+    par l'appelant, pas un special:// Kodi)."""
+    url = _base_url() + '/api/kodi/backup/download?' + urllib.parse.urlencode({'name': name})
+    req = urllib.request.Request(url, headers={'Authorization': _auth_header()})
+
+    try:
+        with urllib.request.urlopen(req, timeout=BACKUP_TIMEOUT) as resp:
+            total = int(resp.headers.get('Content-Length') or 0)
+            written = 0
+            with open(dest_path, 'wb') as fh:
+                while True:
+                    chunk = resp.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+                    written += len(chunk)
+                    if progress_callback:
+                        progress_callback(written, total)
+    except urllib.error.HTTPError as exc:
+        _raise_for_http_error(exc)
+    except (urllib.error.URLError, socket.timeout, ConnectionError) as exc:
+        raise ApiError(str(exc)) from exc
