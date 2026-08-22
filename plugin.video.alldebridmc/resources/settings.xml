@@ -98,9 +98,9 @@
             <group id="1">
                 <setting id="device_name" type="string" label="30201" help="30203">
                     <level>0</level>
-                    <default></default>
+                    <default> </default>
                     <constraints>
-                        <allowempty>false</allowempty>
+                        <allowempty>true</allowempty>
                     </constraints>
                     <control type="edit" format="string">
                         <heading>30201</heading>
