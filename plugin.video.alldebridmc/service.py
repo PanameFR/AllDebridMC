@@ -32,15 +32,23 @@ verifiees ici avant tout Container.Refresh :
   contente de xbmc.executebuiltin direct.
 - JAMAIS pendant une lecture en cours, meme si l'ecran affiche au moment
   du declenchement etait un des notres avant de lancer la lecture.
+
+Termine aussi, a CHAQUE demarrage (tout premier appel de run(), avant la
+boucle), une restauration Kodi laissee en attente par kodi_backup.py -
+voir kodi_backup.apply_pending_settings_restore pour le detail de pourquoi
+les parametres JSON-RPC d'une restauration ne sont jamais appliques
+pendant la restauration elle-meme, seulement au prochain redemarrage.
 """
 import xbmc
 import xbmcaddon
+import xbmcgui
 
-from resources.lib import vstream_db, watch_progress
+from resources.lib import kodi_backup, vstream_db, watch_progress
 
 POLL_INTERVAL = 30  # secondes entre deux sondages periodiques de secours
 
 ADDON = xbmcaddon.Addon()
+ADDON_NAME = ADDON.getAddonInfo('name')
 _BASE_URL = 'plugin://plugin.video.alldebridmc/'
 _REFRESHABLE_ACTIONS = ('action=lists_home', 'action=lists_show', 'action=watch_in_progress', 'action=watch_history')
 
@@ -76,6 +84,22 @@ def _refresh_interval_seconds():
     return minutes * 60 if minutes else 0
 
 
+def _apply_pending_settings_restore():
+    """Termine une restauration Kodi (voir kodi_backup.run_restore) en
+    appliquant les parametres JSON-RPC laisses en attente lors du dernier
+    redemarrage - voir kodi_backup.apply_pending_settings_restore pour le
+    pourquoi ce n'est jamais fait tout de suite pendant la restauration
+    elle-meme. Contrairement a l'auto-refresh, une notification ICI est
+    voulue : elle ne peut apparaitre qu'a la suite d'une restauration
+    explicitement declenchee par l'utilisateur (jamais spontanement),
+    donc ne viole pas la regle "jamais de notif automatique"."""
+    if kodi_backup.apply_pending_settings_restore():
+        xbmc.log('[alldebridmc] service: parametres Kodi restaures au demarrage', xbmc.LOGINFO)
+        xbmcgui.Dialog().notification(
+            ADDON_NAME, ADDON.getLocalizedString(30322), xbmcgui.NOTIFICATION_INFO, 5000,
+        )
+
+
 def _maybe_auto_refresh():
     """xbmc.executebuiltin direct (jamais navigation.run_refresh_action) :
     voir la docstring en tete de module - c'est ce qui garantit qu'aucune
@@ -108,6 +132,11 @@ class _StopTrigger(xbmc.Player):
 
 
 def run():
+    try:
+        _apply_pending_settings_restore()
+    except Exception:
+        xbmc.log('[alldebridmc] service: erreur pendant _apply_pending_settings_restore()', xbmc.LOGERROR)
+
     reader = vstream_db.VStreamDbReader()
     player = _StopTrigger(reader)
     monitor = xbmc.Monitor()

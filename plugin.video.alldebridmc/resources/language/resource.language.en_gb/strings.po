@@ -250,3 +250,7 @@ msgstr ""
 msgctxt "#30321"
 msgid "Auto-refresh interval, in minutes (Lists) - 0 disables it"
 msgstr ""
+
+msgctxt "#30322"
+msgid "Kodi settings restored."
+msgstr ""

@@ -51,6 +51,18 @@ _META_MEMBERS = ('kodi_settings.json', 'backup_meta.json')
 
 _TEMP_DIR = 'special://temp/alldebridmc_backup/'
 
+# Prefixes de reglages propres au MATERIEL de l'appareil (ecran, sortie
+# audio) - jamais restaures depuis la sauvegarde d'un AUTRE appareil : deux
+# Kodi n'ont jamais le meme ecran/la meme carte son, et appliquer les
+# valeurs de la source casse l'affichage/le son sur l'appareil cible
+# (constate reellement : resolution et plein ecran modifies par une
+# restauration cross-device). L'appareil cible garde toujours SES PROPRES
+# valeurs pour ces prefixes, quoi que contienne la sauvegarde.
+_SETTINGS_EXCLUDE_PREFIXES = ('videoscreen.', 'audiooutput.')
+
+# Nom du fichier marqueur (voir apply_pending_settings_restore plus bas).
+_PENDING_SETTINGS_FILENAME = 'pending_settings_restore.json'
+
 
 def _log(message):
     xbmc.log('[{0}] {1}'.format(ADDON_ID, message), level=xbmc.LOGINFO)
@@ -75,9 +87,13 @@ def _restore_settings(settings):
     }
 
     applied = 0
+    skipped = 0
     for setting in settings:
-        setting_id = setting.get('id')
+        setting_id = setting.get('id') or ''
         if setting.get('type') == 'action' or setting_id not in current_by_id:
+            continue
+        if setting_id.startswith(_SETTINGS_EXCLUDE_PREFIXES):
+            skipped += 1
             continue
 
         request = json.dumps({
@@ -87,7 +103,52 @@ def _restore_settings(settings):
         xbmc.executeJSONRPC(request)
         applied += 1
 
-    _log('Parametres Kodi restaures : {0}'.format(applied))
+    _log('Parametres Kodi restaures : {0} (ignores car specifiques a l\'appareil : {1})'.format(applied, skipped))
+
+
+def _own_addon_data_dir():
+    root = xbmcvfs.translatePath(_CATEGORY_ROOTS['addon_data'][0])
+    return os.path.join(root, ADDON_ID)
+
+
+def _pending_settings_path():
+    return os.path.join(_own_addon_data_dir(), _PENDING_SETTINGS_FILENAME)
+
+
+def apply_pending_settings_restore():
+    """Appelee par service.py a CHAQUE demarrage de Kodi, avant toute
+    autre chose. Si une restauration a laisse des parametres en attente
+    (voir run_restore plus bas - jamais appliques tout de suite, justement
+    pour eviter le probleme ci-dessous), les applique maintenant et
+    supprime le marqueur. Ne fait rien sinon (l'immense majorite des
+    demarrages). Retourne True si des parametres ont ete restaures,
+    False sinon - pour que service.py sache s'il doit notifier.
+
+    Pourquoi differe au redemarrage suivant plutot qu'applique tout de
+    suite dans run_restore : au moment ou une restauration s'execute,
+    Kodi tourne encore, avec en memoire le skin/les reglages d'AVANT -
+    un appel JSON-RPC Settings.SetSettingValue immediat s'applique par-
+    dessus cet etat encore vivant, et rien ne force Kodi a relire tout de
+    suite les fichiers addon_data/addons fraichement extraits sur disque
+    (constate reellement : le skin et ses reglages ne survivaient pas a
+    une restauration, alors que les fichiers etaient bien la sur disque
+    juste apres). En repartant a froid avant d'appliquer les parametres,
+    Kodi a deja tout relu depuis le disque (skin, addons, leurs donnees)
+    et les Settings.SetSettingValue s'appliquent sur une base saine."""
+    path = _pending_settings_path()
+    if not os.path.isfile(path):
+        return False
+
+    try:
+        with open(path, 'r', encoding='utf-8') as fh:
+            settings_payload = json.load(fh)
+        _restore_settings(settings_payload)
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return True
 
 
 def _iter_files(root_special, recurse, exclude_top=None):
@@ -209,7 +270,11 @@ def list_backups():
 
 
 def run_restore(progress, backup_name):
-    """Retourne (succes, message_erreur_ou_None)."""
+    """Retourne (succes, message_erreur_ou_None). Les parametres Kodi ne
+    sont jamais appliques ici tout de suite (voir
+    apply_pending_settings_restore ci-dessus pour le pourquoi) : ce qui se
+    passe ici est extraction des fichiers + marqueur ecrit pour le
+    prochain demarrage, jamais l'application des reglages elle-meme."""
     progress.create(ADDON.getLocalizedString(30300), ADDON.getLocalizedString(30304))
     temp_dir = xbmcvfs.translatePath(_TEMP_DIR)
 
@@ -217,6 +282,14 @@ def run_restore(progress, backup_name):
         shutil.rmtree(temp_dir, ignore_errors=True)
         os.makedirs(temp_dir, exist_ok=True)
         zip_path = os.path.join(temp_dir, 'restore.zip')
+
+        # Le nom de CET appareil (reglage de notre propre addon) ne doit
+        # jamais etre ecrase par celui de l'appareil source de la
+        # sauvegarde, sous peine de melanger les appareils - capture avant
+        # extraction (qui ecrase le settings.xml de notre propre addon
+        # avec celui de la source), restaure juste apres.
+        from resources.lib import watch_progress
+        own_device_name = watch_progress.device_name()
 
         def on_download_progress(written, total):
             if total and not progress.iscanceled():
@@ -256,12 +329,18 @@ def run_restore(progress, backup_name):
                 with zf.open(member) as source, open(dest_path, 'wb') as target:
                     shutil.copyfileobj(source, target)
 
+        if own_device_name:
+            ADDON.setSetting('device_name', own_device_name)
+
+        progress.update(95, ADDON.getLocalizedString(30307))
+        xbmc.executebuiltin('UpdateLocalAddons')
+
         if settings_payload is not None:
-            progress.update(96, ADDON.getLocalizedString(30306))
-            _restore_settings(settings_payload)
+            os.makedirs(_own_addon_data_dir(), exist_ok=True)
+            with open(_pending_settings_path(), 'w', encoding='utf-8') as fh:
+                json.dump(settings_payload, fh)
 
         progress.update(99, ADDON.getLocalizedString(30307))
-        xbmc.executebuiltin('UpdateLocalAddons')
 
         return True, None
     except api_client.ApiError as exc:
