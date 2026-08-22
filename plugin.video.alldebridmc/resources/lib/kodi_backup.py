@@ -46,7 +46,13 @@ _CATEGORY_ROOTS = {
     'config': ('special://home/userdata/', False),
 }
 _CONFIG_EXTRA_DIRS = ['keymaps', 'peripheral_data', 'library']
-_ADDONS_EXCLUDE = ['packages', 'temp']
+# ADDON_ID (nous-memes) exclu : c'est CE code qui execute la sauvegarde/
+# restauration, en tant que fichiers sous special://home/addons/<ADDON_ID>/ -
+# l'ecraser pendant qu'il tourne est fragile (deja constate : Permission
+# Denied sur un fichier verrouille par Windows au mauvais moment) et de
+# toute facon inutile : pour restaurer une sauvegarde il faut deja avoir
+# installe cet addon depuis le depot, jamais l'inverse.
+_ADDONS_EXCLUDE = ['packages', 'temp', ADDON_ID]
 _META_MEMBERS = ('kodi_settings.json', 'backup_meta.json')
 
 _TEMP_DIR = 'special://temp/alldebridmc_backup/'
@@ -321,6 +327,13 @@ def run_restore(progress, backup_name):
                 root_special = _CATEGORY_ROOTS.get(category, (None, None))[0]
                 if root_special is None or not relative:
                     continue  # membre inattendu (ne devrait pas arriver) - ignore par securite
+                if category == 'addons' and relative.split('/', 1)[0] == ADDON_ID:
+                    # Sauvegardes deja existantes, creees avant l'exclusion
+                    # de ADDON_ID dans _ADDONS_EXCLUDE (voir plus haut) :
+                    # peuvent encore contenir nos propres fichiers - jamais
+                    # restaures, memes raisons (Permission Denied constate
+                    # en ecrasant le code en train de s'executer).
+                    continue
 
                 dest_root = xbmcvfs.translatePath(root_special)
                 dest_path = os.path.join(dest_root, *relative.split('/'))
