@@ -62,10 +62,6 @@ def render_home(base_url, handle, lists, show_count=True):
     li.setArt({'icon': 'DefaultAddonsSearch.png'})
     xbmcplugin.addDirectoryItem(handle, _url(base_url, action='lists_search_prompt'), li, isFolder=False)
 
-    li = xbmcgui.ListItem(label='Rafraichir')
-    li.setArt({'icon': 'DefaultAddonsUpdates.png'})
-    xbmcplugin.addDirectoryItem(handle, _url(base_url, action='refresh_all'), li, isFolder=False)
-
     for lst in lists:
         label = lst['name']
         if show_count:
