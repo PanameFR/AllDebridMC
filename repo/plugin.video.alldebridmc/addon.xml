@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.10.3"
+       version="1.10.4"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -23,7 +23,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played. Playback resume is synced across all your Kodi devices via the server, with dedicated "In progress"/"History" screens for your local library and, read-only, for vStream/Pastebin movies (including those watched directly within vStream) - with real synced resume for vStream movies launched from this addon, via vStream's own local database. Integrates with service.upnext (if installed) to automatically play the next episode of your local library. Full Kodi backup/restore built in (files, addons and their data, databases, artwork cache, profiles, settings): "Backup" in the root menu pushes an archive to the server (3 kept, oldest deleted automatically), and can restore one onto a blank Kodi to get the exact same setup on a new device (Android, Mac, Windows). Worth knowing: an addon with binary components compiled for a specific platform (e.g. inputstream.adaptive) may not work as-is after restoring onto a different platform.</description>
         <platform>all</platform>
         <license>GPL-3.0</license>
-        <news>1.10.3 : correction d'un film vStream/Pastebin dans Mes Listes qui ne redirigeait plus du tout vers vStream (aucune reaction au clic) - la mise a jour de l'ecran vers vStream et notre propre signal de fin de chargement se declenchaient trop pres l'un de l'autre, et Kodi pouvait annuler la redirection en cours. Les series n'etaient pas concernees.</news>
+        <news>1.10.4 : la 1.10.3 aggravait en fait le probleme de redirection vStream/Pastebin pour les films (pouvait geler Kodi) - corrige. Nouvel essai : le repertoire relais vers vStream se signale desormais comme reussi (vide) plutot qu'en echec, pour ne plus risquer d'annuler la redirection en cours.</news>
         <assets>
             <icon>icon.png</icon>
         </assets>

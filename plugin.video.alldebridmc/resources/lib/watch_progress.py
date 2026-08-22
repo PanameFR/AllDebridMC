@@ -211,7 +211,14 @@ def dispatch(base_url, handle, params):
 
     if action == 'watch_open_vstream_movie':
         _action_open_vstream_movie(params)
-        xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+        # succeeded=True (repertoire vide mais "reussi"), pas False : ce
+        # repertoire ne sert qu'a declencher Container.Update vers vStream
+        # juste au-dessus. succeeded=False y a ete essaye avant - Kodi
+        # semblait alors parfois traiter ce repertoire-ci comme en echec
+        # et annuler la redirection en cours vers vStream, qui n'etait
+        # alors jamais reellement invoque (aucune trace cote vStream dans
+        # les logs). A verifier en conditions reelles.
+        xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
         return
 
     _render_list(base_url, handle, action)
@@ -272,15 +279,12 @@ def _action_open_vstream_movie(params):
     # ",replace" evite d'empiler un ecran intermediaire dans l'historique
     # retour de Kodi - revenir en arriere depuis vStream doit ramener a
     # l'ecran d'origine (Mes Listes/Recherche), pas a ce relais.
-    # wait=True (2e argument) : sans ca, ce builtin est fire-and-forget et
-    # peut perdre la course contre le endOfDirectory(succeeded=False) que
-    # dispatch() renvoie juste apres pour CE repertoire-ci - Kodi annule
-    # alors parfois la redirection en cours, et vStream n'est jamais reellement
-    # invoque (confirme : aucune trace cote vStream dans les logs quand ca
-    # arrive, alors qu'une navigation manuelle vers le meme showHosters
-    # fonctionne toujours). wait=True force Kodi a traiter la mise a jour du
-    # container avant qu'on ne signale l'echec de celui-ci.
-    xbmc.executebuiltin('Container.Update(%s,replace)' % target, True)
+    # NE JAMAIS passer wait=True ici : teste et cause un deadlock Kodi (le
+    # thread Python de CE repertoire est celui-la meme que le thread GUI
+    # attend pour continuer - confirme par un crash reel de Kodi pendant le
+    # test). Rester fire-and-forget ; voir dispatch() ci-dessous pour la
+    # vraie piste (succeeded=True au lieu de False).
+    xbmc.executebuiltin('Container.Update(%s,replace)' % target)
 
 
 def _render_list(base_url, handle, action):
