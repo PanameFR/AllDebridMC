@@ -58,6 +58,8 @@ def route(base_url, handle, params):
         test_connection(handle)
     elif action == 'refresh_all':
         run_refresh_action(handle)
+    elif action == 'open_settings':
+        run_open_settings(handle)
     elif action == 'backup_home':
         _list_backup_menu(base_url, handle)
     elif action == 'backup_run':
@@ -110,6 +112,7 @@ def _list_root_menu(base_url, handle):
         items.append(_build_watch_home_menu_item(base_url))
     items.append(_build_backup_menu_item(base_url))
     items.append(_build_refresh_menu_item(base_url))
+    items.append(_build_settings_menu_item(base_url))
 
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
@@ -184,6 +187,16 @@ def _build_refresh_menu_item(base_url):
     list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30316), offscreen=True)
     list_item.setArt({'icon': 'DefaultAddonsUpdates.png'})
     url = _build_url(base_url, action='refresh_all')
+    return url, list_item, False
+
+
+def _build_settings_menu_item(base_url):
+    """Action directe (RunPlugin), ouvre les reglages de CET addon
+    (Addon.OpenSettings, jamais un sous-dossier) - pour ne pas dependre de
+    l'ecran "Gerer les extensions" de Kodi pour y acceder."""
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30320), offscreen=True)
+    list_item.setArt({'icon': 'DefaultAddonProgram.png'})
+    url = _build_url(base_url, action='open_settings')
     return url, list_item, False
 
 
@@ -632,6 +645,11 @@ def run_refresh_action(handle):
     rafraichissement automatique de widget de skin."""
     xbmc.executebuiltin('Container.Refresh')
     _notify(ADDON.getLocalizedString(30317), error=False)
+    xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+
+
+def run_open_settings(handle):
+    ADDON.openSettings()
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
 

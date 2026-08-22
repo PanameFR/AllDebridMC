@@ -242,3 +242,11 @@ msgstr "Éléments par page (Listes)"
 msgctxt "#30319"
 msgid "Force refresh now"
 msgstr "Forcer la mise à jour maintenant"
+
+msgctxt "#30320"
+msgid "Settings"
+msgstr "Réglages"
+
+msgctxt "#30321"
+msgid "Auto-refresh interval, in minutes (Lists) - 0 disables it"
+msgstr "Intervalle de rafraîchissement auto, en minutes (Listes) - 0 pour désactiver"

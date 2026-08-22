@@ -15,12 +15,34 @@ navigation.play_item()/track_playback() (suivi événementiel xbmc.Player,
 dans le processus du script de lecture, cf. resources/lib/watch_progress.py) -
 aucun rapport en double possible, ce service ne lit jamais que la base de
 vStream, jamais nos propres chemins SMB.
+
+Rafraichissement automatique (lists_refresh_interval_minutes, 0 = desactive) :
+demande explicitement par l'utilisateur pour un Kodi laisse allume en
+continu - contrairement a l'action "Rafraichir" manuelle (navigation.
+run_refresh_action, RunPlugin depuis un clic), qui elle DOIT rester dans
+le processus plugin ephemere (seul endroit ou notifier a du sens), le
+declenchement PERIODIQUE ne peut venir que d'ici : un plugin Kodi ne
+tourne que le temps de repondre a UNE requete puis se termine, il ne
+peut pas se re-declencher tout seul depuis l'interieur d'un ecran deja
+affiche. Deux regles imposees par l'utilisateur, toutes les deux
+verifiees ici avant tout Container.Refresh :
+- JAMAIS de notification pour un rafraichissement automatique (seul le
+  clic manuel en montre une) - respecte simplement en n'appelant jamais
+  navigation.run_refresh_action()/_notify() depuis ce chemin, qui se
+  contente de xbmc.executebuiltin direct.
+- JAMAIS pendant une lecture en cours, meme si l'ecran affiche au moment
+  du declenchement etait un des notres avant de lancer la lecture.
 """
 import xbmc
+import xbmcaddon
 
 from resources.lib import vstream_db, watch_progress
 
 POLL_INTERVAL = 30  # secondes entre deux sondages periodiques de secours
+
+ADDON = xbmcaddon.Addon()
+_BASE_URL = 'plugin://plugin.video.alldebridmc/'
+_REFRESHABLE_ACTIONS = ('action=lists_home', 'action=lists_show', 'action=watch_in_progress', 'action=watch_history')
 
 
 def _poll_and_report(reader):
@@ -46,6 +68,28 @@ def _poll_and_report(reader):
             xbmc.log('[alldebridmc] service: erreur pendant report_vstream()', xbmc.LOGERROR)
 
 
+def _refresh_interval_seconds():
+    try:
+        minutes = ADDON.getSettingInt('lists_refresh_interval_minutes')
+    except (AttributeError, TypeError):
+        minutes = 0
+    return minutes * 60 if minutes else 0
+
+
+def _maybe_auto_refresh():
+    """xbmc.executebuiltin direct (jamais navigation.run_refresh_action) :
+    voir la docstring en tete de module - c'est ce qui garantit qu'aucune
+    notification n'apparait pour un rafraichissement automatique."""
+    if xbmc.Player().isPlaying():
+        return
+    current_path = xbmc.getInfoLabel('Container.FolderPath')
+    if not current_path.startswith(_BASE_URL):
+        return
+    if not any(action in current_path for action in _REFRESHABLE_ACTIONS):
+        return
+    xbmc.executebuiltin('Container.Refresh')
+
+
 class _StopTrigger(xbmc.Player):
     """Ne sert qu'a declencher un sondage immediat des qu'une lecture
     s'arrete, en plus du sondage periodique de secours - vStream vient de
@@ -67,9 +111,22 @@ def run():
     reader = vstream_db.VStreamDbReader()
     player = _StopTrigger(reader)
     monitor = xbmc.Monitor()
+    elapsed_since_refresh = 0
 
     while not monitor.waitForAbort(POLL_INTERVAL):
         _poll_and_report(reader)
+
+        interval_seconds = _refresh_interval_seconds()
+        if interval_seconds:
+            elapsed_since_refresh += POLL_INTERVAL
+            if elapsed_since_refresh >= interval_seconds:
+                elapsed_since_refresh = 0
+                try:
+                    _maybe_auto_refresh()
+                except Exception:
+                    xbmc.log('[alldebridmc] service: erreur pendant _maybe_auto_refresh()', xbmc.LOGERROR)
+        else:
+            elapsed_since_refresh = 0
 
 
 if __name__ == '__main__':
