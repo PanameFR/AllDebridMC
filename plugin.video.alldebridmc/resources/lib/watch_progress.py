@@ -502,4 +502,5 @@ def _add_remove_context_item(list_item, base_url, entry, watch_progress_info):
         url = navigation.build_watch_action_url(base_url, 'watch_clear', path=entry.get('path'))
     list_item.addContextMenuItems([
         (ADDON.getLocalizedString(30256), 'RunPlugin({0})'.format(url)),
+        navigation.build_refresh_context_item(base_url),
     ])

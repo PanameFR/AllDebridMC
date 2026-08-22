@@ -226,3 +226,11 @@ msgstr "Saison %s"
 msgctxt "#30315"
 msgid "Episode %s"
 msgstr "Épisode %s"
+
+msgctxt "#30316"
+msgid "Refresh"
+msgstr "Rafraîchir"
+
+msgctxt "#30317"
+msgid "Refreshed."
+msgstr "Rafraîchi."

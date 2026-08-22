@@ -56,6 +56,8 @@ def route(base_url, handle, params):
         show_movie_info(handle, params)
     elif action == 'test_connection':
         test_connection(handle)
+    elif action == 'refresh_all':
+        run_refresh_action(handle)
     elif action == 'backup_home':
         _list_backup_menu(base_url, handle)
     elif action == 'backup_run':
@@ -107,6 +109,7 @@ def _list_root_menu(base_url, handle):
     if _watch_progress_enabled():
         items.append(_build_watch_home_menu_item(base_url))
     items.append(_build_backup_menu_item(base_url))
+    items.append(_build_refresh_menu_item(base_url))
 
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
@@ -168,6 +171,20 @@ def _build_backup_menu_item(base_url):
     list_item.setArt({'icon': 'DefaultNetwork.png'})
     url = _build_url(base_url, action='backup_home')
     return url, list_item, True
+
+
+def _build_refresh_menu_item(base_url):
+    """Action directe (RunPlugin, jamais une vraie navigation - meme
+    convention que test_connection), pas un sous-dossier : Container.Refresh
+    rafraichit le conteneur ACTIF au moment du clic. Depuis ce menu racine,
+    ca ne rafraichit que lui-meme (peu utile) - le vrai interet est de
+    pouvoir pointer un raccourci de skin directement sur cette action (ou
+    de l'utiliser via son item de menu contextuel, voir lists_gui.py/
+    watch_progress.py) pendant qu'on est deja sur l'ecran a rafraichir."""
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30316), offscreen=True)
+    list_item.setArt({'icon': 'DefaultAddonsUpdates.png'})
+    url = _build_url(base_url, action='refresh_all')
+    return url, list_item, False
 
 
 # ---- sauvegarde/restauration Kodi --------------------------------------
@@ -600,3 +617,26 @@ def test_connection(handle):
     else:
         _notify(ADDON.getLocalizedString(30011), error=False)
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+
+
+# ---- action "Rafraichir" (menu racine + menu contextuel Mes Listes/En cours) --
+
+def run_refresh_action(handle):
+    """Container.Refresh rafraichit le conteneur ACTIF au moment de
+    l'appel - donc CET ecran-ci si declenchee depuis son propre menu
+    contextuel (Mes Listes, En cours), ou le conteneur cible d'un
+    raccourci de skin pointant directement sur cette action. Ne fait
+    jamais rien d'autre : notre contenu n'est deja jamais mis en cache
+    (cacheToDisc=False partout) - le seul interet ici est de forcer Kodi
+    a re-executer la requete tout de suite, sans attendre un eventuel
+    rafraichissement automatique de widget de skin."""
+    xbmc.executebuiltin('Container.Refresh')
+    _notify(ADDON.getLocalizedString(30317), error=False)
+    xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+
+
+def build_refresh_context_item(base_url):
+    """A ajouter dans addContextMenuItems() d'un ecran qu'on veut pouvoir
+    rafraichir depuis lui-meme (voir lists_gui.py/watch_progress.py)."""
+    url = _build_url(base_url, action='refresh_all')
+    return (ADDON.getLocalizedString(30316), 'RunPlugin({0})'.format(url))
