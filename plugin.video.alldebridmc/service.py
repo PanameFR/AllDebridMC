@@ -39,9 +39,9 @@ def _poll_and_report(reader):
         # sondage avec un resultat non vide.
         xbmc.log('[alldebridmc] service: erreur pendant poll()', xbmc.LOGERROR)
         return
-    for tmdb_id, position, duration, resume_key, season, episode in polled:
+    for tmdb_id, position, duration, resume_key, season, episode, smedia in polled:
         try:
-            watch_progress.report_vstream(tmdb_id, position, duration, device, resume_key, season, episode)
+            watch_progress.report_vstream(tmdb_id, position, duration, device, resume_key, season, episode, smedia)
         except Exception:
             xbmc.log('[alldebridmc] service: erreur pendant report_vstream()', xbmc.LOGERROR)
 

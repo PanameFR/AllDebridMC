@@ -177,9 +177,9 @@ class VStreamDbReader(object):
 
     def poll(self):
         """Renvoie une liste de (tmdb_id, position, duration, resume_key,
-        season, episode) - season/episode a None pour un film. Pour un
-        contenu marque vu (table `watched`, pas de point de reprise reel
-        disponible dans ce cas) : position=duration=100.0 et
+        season, episode, smedia) - season/episode/smedia a None pour un
+        film. Pour un contenu marque vu (table `watched`, pas de point de
+        reprise reel disponible dans ce cas) : position=duration=100.0 et
         resume_key=None (rien a correler, l'entree n'offre plus jamais de
         reprise de toute facon une fois "vu"). Liste vide si vStream n'est
         pas installe, sa base est absente/vide, ou rien de nouveau depuis
@@ -211,9 +211,10 @@ class VStreamDbReader(object):
                 if not (tmdb_id and tmdb_id.isdigit()):
                     continue
                 season, episode = _season_episode_from_params(params)
+                smedia = params.get('sMedia')
                 try:
                     results.append(
-                        (int(tmdb_id), float(point), float(total), title or None, season, episode)
+                        (int(tmdb_id), float(point), float(total), title or None, season, episode, smedia)
                     )
                 except (TypeError, ValueError):
                     pass
@@ -226,8 +227,9 @@ class VStreamDbReader(object):
                 self.last_watched_id = max(self.last_watched_id, addon_id)
                 changed = True
                 if tmdb_id and str(tmdb_id).isdigit():
-                    season, episode = _season_episode_from_params(_parse_encoded_params(siteurl))
-                    results.append((int(tmdb_id), 100.0, 100.0, None, season, episode))
+                    watched_params = _parse_encoded_params(siteurl)
+                    season, episode = _season_episode_from_params(watched_params)
+                    results.append((int(tmdb_id), 100.0, 100.0, None, season, episode, watched_params.get('sMedia')))
         except sqlite3.Error:
             pass
         finally:

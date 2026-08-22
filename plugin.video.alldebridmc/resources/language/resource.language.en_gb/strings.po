@@ -218,3 +218,11 @@ msgstr ""
 msgctxt "#30313"
 msgid "Restart Kodi now to apply all the changes?"
 msgstr ""
+
+msgctxt "#30314"
+msgid "Season %s"
+msgstr ""
+
+msgctxt "#30315"
+msgid "Episode %s"
+msgstr ""

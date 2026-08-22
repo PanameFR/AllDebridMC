@@ -157,10 +157,11 @@ def _report(relative_path, position, duration, device):
 
 # ---- suivi des films vStream (service.py, sondage de sa base SQLite) -----
 
-def report_vstream(tmdb_id, position, duration, device, resume_key=None, season=None, episode=None):
+def report_vstream(tmdb_id, position, duration, device, resume_key=None, season=None, episode=None, smedia=None):
     try:
         api_client.post_watch_progress_vstream(
-            tmdb_id, position, duration, device, resume_key=resume_key, season=season, episode=episode,
+            tmdb_id, position, duration, device,
+            resume_key=resume_key, season=season, episode=episode, smedia=smedia,
         )
     except api_client.ApiError:
         pass  # best-effort, meme raison que _report() pour le local
@@ -211,6 +212,14 @@ def dispatch(base_url, handle, params):
     if action == 'watch_clear':
         _action_clear(params)
         xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+        return
+
+    if action == 'watch_show_seasons':
+        _render_show_seasons(base_url, handle, params)
+        return
+
+    if action == 'watch_show_episodes':
+        _render_show_episodes(base_url, handle, params)
         return
 
     _render_list(base_url, handle, action)
@@ -332,29 +341,26 @@ def _apply_visuals(list_item, progress, watched):
 
 
 def _build_vstream_item(base_url, entry):
-    """ListItem pour un film OU un episode de serie vStream suivi (jamais
+    """ListItem pour un film OU une SERIE (jamais un episode precis - voir
+    docstring en tete de module) vStream suivi (jamais
     navigation.build_list_item, qui suppose un chemin local -
-    entry['path'] est None ici). Cible = lien vStream direct
-    (adapter.movie_url()/episode_url()), meme convention que
-    lists_gui.render_list() pour du contenu vStream (on atterrit sur la
-    liste des hebergeurs, pas directement sur une lecture) - voir
-    maybe_seed_vstream_resume() pour pourquoi ce n'est plus une action
-    relais a part."""
+    entry['path'] est None ici).
+
+    Film : cible = lien vStream direct (adapter.movie_url()), meme
+    convention que lists_gui.render_list() - on atterrit sur la liste des
+    hebergeurs, avec la reprise pre-semee ici (maybe_seed_vstream_resume),
+    puisqu'un film n'a qu'UNE seule progression possible, sans ambiguite.
+
+    Serie : cible = notre propre ecran Saisons (action watch_show_seasons,
+    jamais une action de vStream) - PAS de seed ici, l'episode reel n'est
+    pas encore connu a ce stade (voir _render_show_episodes, seul endroit
+    ou il l'est vraiment)."""
     poster = entry.get('poster') or {}
     title = poster.get('title') or entry.get('name') or '?'
     year = poster.get('year')
-    season = poster.get('season')
-    episode = poster.get('episode')
-    is_episode = season is not None and episode is not None
+    is_series = poster.get('media_type') == 'tv'
 
-    if is_episode:
-        episode_tag = 'S{0:02d}E{1:02d}'.format(int(season), int(episode))
-        episode_title = poster.get('episode_title')
-        label = '{0} {1}'.format(title, episode_tag)
-        if episode_title:
-            label += ' - {0}'.format(episode_title)
-    else:
-        label = '{0} ({1})'.format(title, year) if year else title
+    label = '{0} ({1})'.format(title, year) if year else title
 
     list_item = xbmcgui.ListItem(label=label, offscreen=True)
     if poster.get('poster_url'):
@@ -362,25 +368,107 @@ def _build_vstream_item(base_url, entry):
 
     info = list_item.getVideoInfoTag()
     info.setTitle(label)
-    if is_episode:
-        info.setMediaType('episode')
-        info.setSeason(int(season))
-        info.setEpisode(int(episode))
-    else:
-        info.setMediaType('movie')
+    info.setMediaType('tvshow' if is_series else 'movie')
     if year:
         info.setYear(int(year))
 
     tmdb_id = poster.get('tmdb_id')
-    from resources.lib.vstream_adapter import VStreamPastebinAdapter
-    adapter = VStreamPastebinAdapter()
-    if is_episode:
-        maybe_seed_vstream_resume(tmdb_id, season=season, episode=episode)
-        url = adapter.episode_url(tmdb_id, season, episode, title=title, smedia=poster.get('smedia'))
+    if is_series:
+        url = navigation.build_watch_action_url(
+            base_url, 'watch_show_seasons', tmdb_id=tmdb_id, title=title, smedia=poster.get('smedia') or '',
+        )
     else:
         maybe_seed_vstream_resume(tmdb_id)
+        from resources.lib.vstream_adapter import VStreamPastebinAdapter
+        adapter = VStreamPastebinAdapter()
         url = adapter.movie_url(tmdb_id, title=title, poster_url=poster.get('poster_url'))
     return url, list_item, True
+
+
+def _render_show_seasons(base_url, handle, params):
+    """Ecran "Saisons" pour une serie vStream suivie (En cours/Historique) -
+    construit depuis pastebin_catalog.py cote serveur (jamais vStream
+    directement), pour garder la main jusqu'au clic sur l'episode precis
+    (voir _render_show_episodes) et pouvoir semer la bonne reprise a ce
+    moment-la, jamais avant."""
+    tmdb_id = params.get('tmdb_id', '')
+    title = params.get('title', '')
+    smedia = params.get('smedia') or None
+
+    try:
+        data = api_client.get_watch_progress_vstream_seasons(tmdb_id)
+    except api_client.ApiError:
+        xbmcgui.Dialog().notification(
+            ADDON_NAME, ADDON.getLocalizedString(30012), xbmcgui.NOTIFICATION_ERROR, 5000,
+        )
+        xbmcplugin.endOfDirectory(handle, succeeded=False)
+        return
+
+    xbmcplugin.setPluginCategory(handle, title or data.get('title') or '')
+    xbmcplugin.setContent(handle, 'seasons')
+
+    items = []
+    for season in data.get('seasons') or []:
+        li = xbmcgui.ListItem(label=ADDON.getLocalizedString(30314) % season, offscreen=True)
+        li.getVideoInfoTag().setMediaType('season')
+        url = navigation.build_watch_action_url(
+            base_url, 'watch_show_episodes', tmdb_id=tmdb_id, season=season,
+            title=title or data.get('title') or '', smedia=smedia or data.get('smedia') or '',
+        )
+        items.append((url, li, True))
+
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=bool(items), cacheToDisc=False)
+
+
+def _render_show_episodes(base_url, handle, params):
+    """Ecran "Episodes" d'UNE saison precise - seul endroit ou l'episode
+    reellement choisi devient connu. C'est ICI, au RENDU (jamais dans une
+    action a part au clic - meme raison que pour les films dans
+    lists_gui.py : un ecran relais separe a deja cause des problemes de
+    pile de navigation Kodi cette meme session) qu'on seme la reprise pour
+    CHAQUE episode qui en a une, avant de construire son lien direct vers
+    vStream (adapter.episode_url()) - jamais l'inverse."""
+    tmdb_id_raw = params.get('tmdb_id', '')
+    season_raw = params.get('season', '')
+    title = params.get('title', '')
+    smedia = params.get('smedia') or None
+
+    try:
+        episodes = api_client.get_watch_progress_vstream_episodes(tmdb_id_raw, season_raw)
+    except api_client.ApiError:
+        xbmcgui.Dialog().notification(
+            ADDON_NAME, ADDON.getLocalizedString(30012), xbmcgui.NOTIFICATION_ERROR, 5000,
+        )
+        xbmcplugin.endOfDirectory(handle, succeeded=False)
+        return
+
+    xbmcplugin.setPluginCategory(handle, '{0} - Saison {1}'.format(title, season_raw))
+    xbmcplugin.setContent(handle, 'episodes')
+
+    from resources.lib.vstream_adapter import VStreamPastebinAdapter
+    adapter = VStreamPastebinAdapter()
+
+    items = []
+    for entry in episodes:
+        episode = entry.get('episode')
+        progress = entry.get('progress')
+        if progress and progress.get('resume_key'):
+            vstream_db.seed_resume(progress['resume_key'], progress['position'], progress['duration'])
+
+        li = xbmcgui.ListItem(label=ADDON.getLocalizedString(30315) % episode, offscreen=True)
+        info = li.getVideoInfoTag()
+        info.setMediaType('episode')
+        info.setEpisode(int(episode))
+        if progress:
+            info.setResumePoint(float(progress['position']), float(progress['duration']))
+        url = adapter.episode_url(tmdb_id_raw, season_raw, episode, title=title, smedia=smedia)
+        items.append((url, li, True))
+
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=bool(items), cacheToDisc=False)
 
 
 def _add_remove_context_item(list_item, base_url, entry, watch_progress_info):

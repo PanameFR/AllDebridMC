@@ -182,7 +182,9 @@ def list_watch_progress(status):
     return _get('/api/kodi/watch-progress/list', {'status': status}).get('items', [])
 
 
-def post_watch_progress_vstream(tmdb_id, position, duration, device, resume_key=None, season=None, episode=None):
+def post_watch_progress_vstream(
+    tmdb_id, position, duration, device, resume_key=None, season=None, episode=None, smedia=None,
+):
     payload = {
         'source': 'vstream', 'tmdb_id': tmdb_id,
         'position': position, 'duration': duration, 'device': device, 'resume_key': resume_key,
@@ -190,7 +192,16 @@ def post_watch_progress_vstream(tmdb_id, position, duration, device, resume_key=
     if season is not None and episode is not None:
         payload['season'] = season
         payload['episode'] = episode
+        payload['smedia'] = smedia
     _post('/api/kodi/watch-progress', payload)
+
+
+def get_watch_progress_vstream_seasons(tmdb_id):
+    return _get('/api/kodi/watch-progress/vstream/seasons', {'tmdb_id': tmdb_id})
+
+
+def get_watch_progress_vstream_episodes(tmdb_id, season):
+    return _get('/api/kodi/watch-progress/vstream/episodes', {'tmdb_id': tmdb_id, 'season': season}).get('episodes', [])
 
 
 def get_watch_progress_vstream(tmdb_id, season=None, episode=None):
