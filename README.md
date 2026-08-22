@@ -9,23 +9,29 @@
 </p>
 
 <p align="center">
-  <img alt="Version extension" src="https://img.shields.io/badge/AllDebridMC-1.10.0-2ea3f2">
+  <img alt="Version extension" src="https://img.shields.io/badge/AllDebridMC-1.10.1-2ea3f2">
   <img alt="Version depot" src="https://img.shields.io/badge/Repository-1.0.2-2ea3f2">
+  <img alt="Licence" src="https://img.shields.io/badge/licence-GPL--3.0-lightgrey">
 </p>
 
 ---
 
 ## 🎬 C'est quoi ?
 
-**AllDebridMC** connecte Kodi à un serveur [AllDebrid
-Downloader](https://github.com) auto-hébergé (typiquement sur un Raspberry
-Pi) : il parcourt exactement la même arborescence que la page Stockage de
-l'outil (A trier, Films, Séries, Animations...), avec les mêmes jaquettes,
-saisons et épisodes déjà associés via TMDB — rien n'est redeviné côté Kodi,
-tout vient du serveur.
+**AllDebridMC** connecte Kodi à un serveur [AllDebrid Downloader](https://github.com)
+auto-hébergé (typiquement un Raspberry Pi sous [OpenMediaVault](https://www.openmediavault.org/)) :
+il parcourt exactement la même arborescence que la page Stockage de l'outil
+(À trier, Films, Séries, Animations...), avec les mêmes jaquettes, saisons
+et épisodes déjà associés via TMDB — rien n'est redeviné côté Kodi, tout
+vient du serveur.
 
 La lecture vidéo passe directement par le partage réseau (SMB) du serveur,
 jamais par son API — aucun impact sur les téléchargements en cours.
+
+Inclut aussi la fonctionnalité **Listes** : crée des listes personnelles
+mêlant ta bibliothèque locale et du contenu [vStream](https://github.com/Kodi-vStream/venom-xbmc-addons)/Pastebin,
+chacun redirigé automatiquement vers la bonne source à la lecture — sans
+jamais modifier vStream, juste s'appuyer dessus pour cette source précise.
 
 ## ✨ Fonctionnalités
 
@@ -35,7 +41,16 @@ jamais par son API — aucun impact sur les téléchargements en cours.
 - 🎞️ Détails film (résumé, genres, note, durée) à la demande, sans requête
   superflue au serveur
 - ▶️ Lecture directe en SMB, indépendante du serveur web
-- 🔁 Mises à jour automatiques une fois le dépôt installé
+- 📋 Listes personnelles mêlant bibliothèque locale et contenu vStream/Pastebin
+- 🔁 Reprise de lecture synchronisée entre tous tes appareils Kodi, avec
+  écrans "En cours"/"Historique"
+- ⏭️ Intégration [service.upnext](https://github.com/MoojMidge/service.upnext)
+  (si installé) pour enchaîner automatiquement les épisodes
+- 💾 Sauvegarde/restauration complète de Kodi (fichiers, addons et leurs
+  données, bases de données, cache d'affiches, profils, paramètres) :
+  pousse une archive sur le serveur (3 conservées, rotation automatique) et
+  restaure la même configuration sur un nouvel appareil (Android, Mac, Windows)
+- 🔄 Mises à jour automatiques une fois le dépôt installé
 
 ## 📦 Installation
 
@@ -66,10 +81,37 @@ chaque nouvelle version publiée), plus besoin de repasser par un zip.
 
 ## ✅ Prérequis
 
-- Un serveur AllDebrid Downloader accessible sur le
-  même réseau, avec ses routes `/api/kodi/*` (déjà incluses par défaut)
-- Le partage SMB du serveur accessible avec un compte valide
+- Un serveur AllDebrid Downloader accessible sur le même réseau (typiquement
+  un Raspberry Pi sous [OpenMediaVault](https://www.openmediavault.org/)),
+  avec ses routes `/api/kodi/*` (déjà incluses par défaut) et un partage
+  réseau SMB actif
+- Un compte [AllDebrid](https://alldebrid.com/) actif, utilisé par le
+  serveur pour débrider/télécharger
+- [vStream](https://github.com/Kodi-vStream/venom-xbmc-addons) installé et
+  configuré si tu veux utiliser la fonctionnalité Listes avec du contenu
+  Pastebin
 
-## 📄 Licence
+## 🛠️ Support
 
-Projet personnel, non affilié à AllDebrid.
+AllDebridMC est un addon gratuit et libre de modification, développé sur
+mon temps bénévole. Les futures mises à jour dépendront des
+[issues](../../issues) ouvertes sur ce dépôt et du temps disponible, sans
+garantie de délai.
+
+Pour tout problème lié à **AllDebridMC**, ouvre une issue ici. Merci de ne
+pas contacter l'équipe de vStream ou AllDebrid à ce sujet, ce projet n'a
+aucun lien avec eux et ils n'ont pas à gérer nos bugs.
+
+## 📄 Licence & crédits
+
+Distribué sous licence GPL-3.0. S'appuie sur [vStream](https://github.com/Kodi-vStream/venom-xbmc-addons)
+pour la lecture de la source Pastebin, et sur l'API [TMDB](https://www.themoviedb.org/)
+pour les métadonnées. Ce produit utilise l'API TMDB mais n'est ni approuvé
+ni certifié par TMDB.
+
+Le serveur AllDebrid Downloader tourne typiquement sur un Raspberry Pi sous
+[OpenMediaVault](https://www.openmediavault.org/), avec un partage réseau
+SMB pour la lecture vidéo.
+
+Projet non officiel, développé indépendamment : il n'est ni développé, ni
+approuvé, ni maintenu par l'équipe de vStream.
