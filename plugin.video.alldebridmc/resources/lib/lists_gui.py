@@ -129,17 +129,22 @@ def render_list(base_url, handle, list_id, list_data):
                 play_command = 'PlayMedia(%s)' % target_url
         elif vstream_ok:
             if media_type == 'movie':
-                # Passe par notre propre addon (verifie d'abord si le
-                # serveur connait une position plus recente pour ce film,
-                # laissee sur un autre appareil, et l'ecrit dans la base
-                # LOCALE de vStream avant de rediriger, pour que SA PROPRE
-                # reprise native se declenche - voir watch_progress.py) au
-                # lieu de adapter.movie_url() directement. Jamais pour une
-                # serie : aucune identite fiable ne survit jusqu'a la
-                # lecture reelle d'un episode chez vStream.
-                target_url = _url(
-                    base_url, action='watch_open_vstream_movie', tmdb_id=tmdb_id,
-                    title=item.get('title'), poster_url=item.get('poster_url'),
+                # Verifie d'abord si le serveur connait une position plus
+                # recente pour ce film (laissee sur un autre appareil) et
+                # l'ecrit dans la base LOCALE de vStream, pour que SA
+                # PROPRE reprise native se declenche - voir
+                # watch_progress.py. Fait ICI, au rendu (pas dans une
+                # action a part au clic, essaye avant : Kodi n'avait pas
+                # fini d'empiler cet ecran relais quand la redirection
+                # partait, et "Retour" depuis vStream remontait vers
+                # vStream lui-meme plutot que vers cette liste) pour que
+                # l'item pointe directement vers vStream, comme une serie.
+                # Jamais pour une serie : aucune identite fiable ne survit
+                # jusqu'a la lecture reelle d'un episode chez vStream.
+                from resources.lib import watch_progress
+                watch_progress.maybe_seed_vstream_resume(tmdb_id)
+                target_url = adapter.movie_url(
+                    tmdb_id, title=item.get('title'), poster_url=item.get('poster_url'),
                 )
             else:
                 target_url = adapter.tvshow_url(tmdb_id, title=item.get('title'), smedia=item.get('smedia'))
@@ -198,9 +203,9 @@ def render_search(base_url, handle, results, query):
         if vstream_ok:
             if media_type == 'movie':
                 # Voir le meme commentaire dans render_list() plus haut.
-                target_url = _url(
-                    base_url, action='watch_open_vstream_movie', tmdb_id=tmdb_id, title=entry.get('title'),
-                )
+                from resources.lib import watch_progress
+                watch_progress.maybe_seed_vstream_resume(tmdb_id)
+                target_url = adapter.movie_url(tmdb_id, title=entry.get('title'))
             else:
                 target_url = adapter.tvshow_url(tmdb_id, title=entry.get('title'), smedia=entry.get('smedia'))
             is_folder = True

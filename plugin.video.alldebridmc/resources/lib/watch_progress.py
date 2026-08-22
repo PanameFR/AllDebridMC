@@ -28,25 +28,25 @@ redirection, jamais la navigation native, et dépendait d'une fenêtre de
 temps fragile. Lire la base est strictement meilleur : plus simple, et
 couvre aussi la navigation native.
 
-Reprise RÉELLEMENT synchronisée pour vStream (pas juste affichée) : quand
-un film vStream est lancé DEPUIS NOTRE ADDON (_action_open_vstream_movie),
-on regarde d'abord si le serveur connaît une position plus récente pour ce
-tmdb_id, et si oui on l'écrit dans la table `resume` LOCALE de vStream
+Reprise RÉELLEMENT synchronisée pour vStream (pas juste affichée) : avant
+de construire le lien vStream d'un film listé (voir lists_gui.py, qui
+appelle maybe_seed_vstream_resume() au RENDU de la liste, pas au clic -
+l'item pointe ensuite directement vers vStream, sans écran relais), on
+regarde si le serveur connaît une position plus récente pour ce tmdb_id,
+et si oui on l'écrit dans la table `resume` LOCALE de vStream
 (vstream_db.seed_resume, avec sa propre clé de corrélation, apprise en la
-relisant sur l'appareil qui a joué ce film en premier - jamais devinée)
-avant de rediriger. Le mécanisme natif de vStream (code non modifié) la
-trouve alors et propose lui-même sa reprise. Ne fonctionne toujours que
-pour les films lancés depuis notre addon (aucun moyen d'agir avant que
-vStream ne prenne la main depuis sa propre navigation), et seulement pour
-un film déjà joué au moins une fois quelque part (sinon la clé de
-corrélation n'est pas encore connue).
+relisant sur l'appareil qui a joué ce film en premier - jamais devinée).
+Le mécanisme natif de vStream (code non modifié) la trouve alors et
+propose lui-même sa reprise. Ne fonctionne toujours que pour les films
+listés depuis notre addon (aucun moyen d'agir avant que vStream ne prenne
+la main depuis sa propre navigation), et seulement pour un film déjà joué
+au moins une fois quelque part (sinon la clé de corrélation n'est pas
+encore connue).
 
 Import de navigation en tête (build_list_item) : c'est pour ça que
 navigation.py importe CE module en différé (voir route()/play_item()) et
 jamais l'inverse, pour éviter un cycle.
 """
-import threading
-
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -211,16 +211,6 @@ def dispatch(base_url, handle, params):
         xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
         return
 
-    if action == 'watch_open_vstream_movie':
-        target = _action_open_vstream_movie(params)
-        # succeeded=True (repertoire vide mais "reussi") : voir plus bas
-        # pour Container.Update, differe apres ce endOfDirectory - c'est la
-        # combinaison des deux qui compte ici, pas ce flag seul (essaye
-        # seul d'abord, insuffisant : voir _schedule_container_update).
-        xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
-        _schedule_container_update(target)
-        return
-
     _render_list(base_url, handle, action)
 
 
@@ -252,63 +242,34 @@ def _vstream_resume_write_enabled():
         return True
 
 
-def _action_open_vstream_movie(params):
-    """Point d'entrée commun pour tout film vStream lancé depuis notre
-    addon (Mes Listes/Recherche) : si le serveur connaît une position plus
-    récente pour ce film (peut-être laissée sur un AUTRE appareil), on
-    l'écrit dans la base locale de vStream avant de rediriger, pour que
-    SON PROPRE mécanisme de reprise (code non modifié) la propose - voir
-    la docstring en tête de module. Un échec à n'importe quelle étape ici
-    (serveur injoignable, position inconnue, clé de corrélation pas encore
-    apprise) laisse simplement vStream démarrer normalement, sans reprise
-    - jamais bloquant."""
-    tmdb_id_raw = params.get('tmdb_id', '')
-    if tmdb_id_raw.isdigit() and enabled() and _vstream_resume_write_enabled():
-        try:
-            progress = api_client.get_watch_progress_vstream(int(tmdb_id_raw))
-        except api_client.ApiError:
-            progress = None
-        if progress and progress.get('resume_key'):
-            vstream_db.seed_resume(progress['resume_key'], progress['position'], progress['duration'])
+def maybe_seed_vstream_resume(tmdb_id):
+    """A appeler avant de construire le lien vStream d'un film (voir
+    lists_gui.py) : si le serveur connaît une position plus récente pour ce
+    film (peut-être laissée sur un AUTRE appareil), on l'écrit dans la base
+    locale de vStream, pour que SON PROPRE mécanisme de reprise (code non
+    modifié) la propose - voir la docstring en tête de module. Un échec à
+    n'importe quelle étape ici (serveur injoignable, position inconnue, clé
+    de corrélation pas encore apprise) ne fait simplement rien - vStream
+    démarre alors normalement, sans reprise - jamais bloquant.
 
-    from resources.lib.vstream_adapter import VStreamPastebinAdapter
-    adapter = VStreamPastebinAdapter()
-    return adapter.movie_url(
-        params.get('tmdb_id'), title=params.get('title'), poster_url=params.get('poster_url'),
-    )
-
-
-def _schedule_container_update(target):
-    """Container.Update(...,replace) vers vStream, differe d'environ 300ms
-    apres notre propre endOfDirectory - PAS declenche directement depuis
-    _action_open_vstream_movie/dispatch() comme avant.
-
-    Deux essais precedents, tous les deux insuffisants seuls :
-    - executebuiltin fire-and-forget synchrone, succeeded=False : vStream
-      n'etait souvent jamais invoque du tout (aucune trace dans ses logs) -
-      Kodi semblait annuler la redirection en cours au profit du signal
-      d'echec de CE repertoire-ci.
-    - meme chose avec succeeded=True : vStream etait bien invoque cette
-      fois, MAIS son resultat atterrissait sur l'ecran D'AVANT (Mes
-      Listes), pas sur celui-ci - confirme en observant que "Retour"
-      depuis cet ecran (reste vide) revelait la liste des hebergeurs deja
-      construite. ",replace" fire DEPUIS le repertoire meme qu'il doit
-      remplacer, alors que Kodi n'a pas fini de l'empiler sur la pile de
-      navigation - il remplace alors l'ecran parent a la place.
-    - wait=True sur executebuiltin (pour forcer l'ordre) : deadlock reel de
-      Kodi (le thread Python de ce repertoire est celui-la meme que le
-      thread GUI attend pour continuer) - a bien cause un crash constate.
-
-    Un delai (thread separe, jamais wait=True) laisse Kodi finir d'empiler
-    ET de rendre ce repertoire AVANT que Container.Update ne parte - plus
-    d'ambiguite sur quelle entree de la pile ",replace" doit remplacer.
-    Meme pattern que renewPaste() dans vStream lui-meme (getLines()),
-    utilise pour une raison similaire (differer sans bloquer l'appel en
-    cours)."""
-    def _fire():
-        xbmc.executebuiltin('Container.Update(%s,replace)' % target)
-
-    threading.Timer(0.3, _fire).start()
+    Appelée au RENDU de la liste (pas au clic) : le lien de l'item pointe
+    alors directement vers vStream (adapter.movie_url(), meme chemin propre
+    et direct qu'une série - voir tvshow_url()), sans écran relais. Un
+    relais séparé (action dédiée, Container.Update différé) a été essayé
+    avant : le contenu vStream finissait par s'afficher, mais "Retour"
+    depuis cet écran remontait vers vStream lui-même plutôt que vers notre
+    liste (contrairement à une série, qui n'a jamais eu ce relais) - la
+    pile de navigation de Kodi restait légèrement faussée même quand le
+    contenu affiché était correct. Vérifier ici, avant tout push d'écran,
+    l'évite structurellement plutôt que de rejouer avec le timing."""
+    if not (enabled() and _vstream_resume_write_enabled()):
+        return
+    try:
+        progress = api_client.get_watch_progress_vstream(int(tmdb_id))
+    except (api_client.ApiError, TypeError, ValueError):
+        return
+    if progress and progress.get('resume_key'):
+        vstream_db.seed_resume(progress['resume_key'], progress['position'], progress['duration'])
 
 
 def _render_list(base_url, handle, action):
@@ -367,11 +328,11 @@ def _apply_visuals(list_item, progress, watched):
 def _build_vstream_item(base_url, entry):
     """ListItem pour un film vStream suivi (jamais navigation.build_list_item,
     qui suppose un chemin local - entry['path'] est None ici). Cible =
-    notre propre action watch_open_vstream_movie (verifie une position plus
-    recente puis ecrit dans la base locale de vStream avant de rediriger -
-    voir _action_open_vstream_movie), isFolder=True - meme convention que
+    lien vStream direct (adapter.movie_url()), meme convention que
     lists_gui.render_list() pour du contenu vStream (on atterrit sur la
-    liste des hebergeurs, pas directement sur une lecture)."""
+    liste des hebergeurs, pas directement sur une lecture) - voir
+    maybe_seed_vstream_resume() pour pourquoi ce n'est plus une action
+    relais a part."""
     poster = entry.get('poster') or {}
     title = poster.get('title') or entry.get('name') or '?'
     year = poster.get('year')
@@ -387,10 +348,11 @@ def _build_vstream_item(base_url, entry):
     if year:
         info.setYear(int(year))
 
-    url = navigation.build_watch_action_url(
-        base_url, 'watch_open_vstream_movie', tmdb_id=poster.get('tmdb_id'),
-        title=title, poster_url=poster.get('poster_url') or '',
-    )
+    tmdb_id = poster.get('tmdb_id')
+    maybe_seed_vstream_resume(tmdb_id)
+    from resources.lib.vstream_adapter import VStreamPastebinAdapter
+    adapter = VStreamPastebinAdapter()
+    url = adapter.movie_url(tmdb_id, title=title, poster_url=poster.get('poster_url'))
     return url, list_item, True
 
 
