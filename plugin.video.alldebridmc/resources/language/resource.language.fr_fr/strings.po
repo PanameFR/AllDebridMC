@@ -234,3 +234,11 @@ msgstr "Rafraîchir"
 msgctxt "#30317"
 msgid "Refreshed."
 msgstr "Rafraîchi."
+
+msgctxt "#30318"
+msgid "Items per page (Lists)"
+msgstr "Éléments par page (Listes)"
+
+msgctxt "#30319"
+msgid "Force refresh now"
+msgstr "Forcer la mise à jour maintenant"

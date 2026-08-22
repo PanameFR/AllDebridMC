@@ -127,8 +127,8 @@ def list_lists():
     return _get('/api/kodi/lists').get('lists', [])
 
 
-def list_items(list_id):
-    return _get('/api/kodi/lists/{0}'.format(list_id))
+def list_items(list_id, page=1, per_page=50):
+    return _get('/api/kodi/lists/{0}'.format(list_id), {'page': page, 'per_page': per_page})
 
 
 def create_list(name):

@@ -229,10 +229,19 @@ def render_home(base_url, handle, params):
     lists_gui.render_home(base_url, handle, lists, show_count=_show_count())
 
 
+def _items_per_page():
+    try:
+        value = ADDON.getSettingInt("lists_items_per_page")
+        return value if value and value > 0 else 50
+    except (AttributeError, TypeError):
+        return 50
+
+
 def render_list(base_url, handle, params):
     list_id = _int(params.get("list_id"))
+    page = _int(params.get("page")) or 1
     try:
-        list_data = api_client.list_items(list_id)
+        list_data = api_client.list_items(list_id, page=page, per_page=_items_per_page())
     except api_client.ApiError as exc:
         _handle_api_error(exc)
         list_data = {"items": []}

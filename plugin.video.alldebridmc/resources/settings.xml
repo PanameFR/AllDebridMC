@@ -151,6 +151,23 @@
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
+                <setting id="lists_items_per_page" type="integer" label="30318" help="">
+                    <level>0</level>
+                    <default>50</default>
+                    <constraints>
+                        <minimum>10</minimum>
+                        <maximum>500</maximum>
+                        <step>10</step>
+                    </constraints>
+                    <control type="spinner" format="integer"/>
+                </setting>
+                <setting id="lists_refresh_now" type="action" label="30319" help="">
+                    <level>0</level>
+                    <data>RunPlugin(plugin://plugin.video.alldebridmc/?action=refresh_all)</data>
+                    <control type="button" format="action">
+                        <close>false</close>
+                    </control>
+                </setting>
             </group>
         </category>
     </section>

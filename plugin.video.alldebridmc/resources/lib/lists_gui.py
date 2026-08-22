@@ -17,6 +17,7 @@ import urllib.parse
 import xbmcgui
 import xbmcplugin
 
+from resources.lib import navigation
 from resources.lib.vstream_adapter import VStreamPastebinAdapter
 
 
@@ -171,10 +172,24 @@ def render_list(base_url, handle, list_id, list_data):
             ('Descendre', 'RunPlugin(%s)' % _url(base_url, action='lists_reorder_item', direction='down', **common)),
             ('Mettre en premier', 'RunPlugin(%s)' % _url(base_url, action='lists_reorder_item', direction='first', **common)),
             ('Mettre en dernier', 'RunPlugin(%s)' % _url(base_url, action='lists_reorder_item', direction='last', **common)),
+            navigation.build_refresh_context_item(base_url),
         ]
         li.addContextMenuItems(commands)
 
         xbmcplugin.addDirectoryItem(handle, target_url, li, isFolder=is_folder)
+
+    if list_data.get('has_next'):
+        # Meme convention que vStream (pastebin.py::showMovies, ITEM_PAR_PAGE) :
+        # un item "Page suivante" en fin de liste plutot que tout charger
+        # d'un coup - la pagination est faite cote SERVEUR (voir
+        # lists_store.get_items_enriched), pas juste un decoupage a
+        # l'affichage : les items des AUTRES pages ne sont meme pas
+        # enrichis (le cout reel, cf. docstring serveur).
+        next_page = list_data.get('page', 1) + 1
+        li = xbmcgui.ListItem(label='Page suivante >>')
+        xbmcplugin.addDirectoryItem(
+            handle, _url(base_url, action='lists_show', list_id=list_id, page=next_page), li, isFolder=True,
+        )
 
     xbmcplugin.endOfDirectory(handle)
 
