@@ -182,19 +182,31 @@ def list_watch_progress(status):
     return _get('/api/kodi/watch-progress/list', {'status': status}).get('items', [])
 
 
-def post_watch_progress_vstream(tmdb_id, position, duration, device, resume_key=None):
-    _post('/api/kodi/watch-progress', {
+def post_watch_progress_vstream(tmdb_id, position, duration, device, resume_key=None, season=None, episode=None):
+    payload = {
         'source': 'vstream', 'tmdb_id': tmdb_id,
         'position': position, 'duration': duration, 'device': device, 'resume_key': resume_key,
-    })
+    }
+    if season is not None and episode is not None:
+        payload['season'] = season
+        payload['episode'] = episode
+    _post('/api/kodi/watch-progress', payload)
 
 
-def get_watch_progress_vstream(tmdb_id):
-    return _get('/api/kodi/watch-progress', {'source': 'vstream', 'tmdb_id': tmdb_id}).get('progress')
+def get_watch_progress_vstream(tmdb_id, season=None, episode=None):
+    params = {'source': 'vstream', 'tmdb_id': tmdb_id}
+    if season is not None and episode is not None:
+        params['season'] = season
+        params['episode'] = episode
+    return _get('/api/kodi/watch-progress', params).get('progress')
 
 
-def clear_watch_progress_vstream(tmdb_id):
-    _post('/api/kodi/watch-progress/clear', {'source': 'vstream', 'tmdb_id': tmdb_id})
+def clear_watch_progress_vstream(tmdb_id, season=None, episode=None):
+    payload = {'source': 'vstream', 'tmdb_id': tmdb_id}
+    if season is not None and episode is not None:
+        payload['season'] = season
+        payload['episode'] = episode
+    _post('/api/kodi/watch-progress/clear', payload)
 
 
 # ---- sauvegarde/restauration Kodi (kodi_backup.py sur le serveur) ---------

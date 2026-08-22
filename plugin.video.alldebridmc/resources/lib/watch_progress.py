@@ -157,9 +157,11 @@ def _report(relative_path, position, duration, device):
 
 # ---- suivi des films vStream (service.py, sondage de sa base SQLite) -----
 
-def report_vstream(tmdb_id, position, duration, device):
+def report_vstream(tmdb_id, position, duration, device, resume_key=None, season=None, episode=None):
     try:
-        api_client.post_watch_progress_vstream(tmdb_id, position, duration, device)
+        api_client.post_watch_progress_vstream(
+            tmdb_id, position, duration, device, resume_key=resume_key, season=season, episode=episode,
+        )
     except api_client.ApiError:
         pass  # best-effort, meme raison que _report() pour le local
 
@@ -221,7 +223,11 @@ def _action_clear(params):
             tmdb_id = params.get('tmdb_id', '')
             if not tmdb_id.isdigit():
                 return
-            api_client.clear_watch_progress_vstream(int(tmdb_id))
+            season, episode = params.get('season'), params.get('episode')
+            if season is not None and episode is not None:
+                api_client.clear_watch_progress_vstream(int(tmdb_id), season=int(season), episode=int(episode))
+            else:
+                api_client.clear_watch_progress_vstream(int(tmdb_id))
         else:
             relative_path = params.get('path', '')
             if not relative_path:
@@ -242,7 +248,7 @@ def _vstream_resume_write_enabled():
         return True
 
 
-def maybe_seed_vstream_resume(tmdb_id):
+def maybe_seed_vstream_resume(tmdb_id, season=None, episode=None):
     """A appeler avant de construire le lien vStream d'un film (voir
     lists_gui.py) : si le serveur connaît une position plus récente pour ce
     film (peut-être laissée sur un AUTRE appareil), on l'écrit dans la base
@@ -265,7 +271,7 @@ def maybe_seed_vstream_resume(tmdb_id):
     if not (enabled() and _vstream_resume_write_enabled()):
         return
     try:
-        progress = api_client.get_watch_progress_vstream(int(tmdb_id))
+        progress = api_client.get_watch_progress_vstream(int(tmdb_id), season=season, episode=episode)
     except (api_client.ApiError, TypeError, ValueError):
         return
     if progress and progress.get('resume_key'):
@@ -326,9 +332,10 @@ def _apply_visuals(list_item, progress, watched):
 
 
 def _build_vstream_item(base_url, entry):
-    """ListItem pour un film vStream suivi (jamais navigation.build_list_item,
-    qui suppose un chemin local - entry['path'] est None ici). Cible =
-    lien vStream direct (adapter.movie_url()), meme convention que
+    """ListItem pour un film OU un episode de serie vStream suivi (jamais
+    navigation.build_list_item, qui suppose un chemin local -
+    entry['path'] est None ici). Cible = lien vStream direct
+    (adapter.movie_url()/episode_url()), meme convention que
     lists_gui.render_list() pour du contenu vStream (on atterrit sur la
     liste des hebergeurs, pas directement sur une lecture) - voir
     maybe_seed_vstream_resume() pour pourquoi ce n'est plus une action
@@ -336,7 +343,18 @@ def _build_vstream_item(base_url, entry):
     poster = entry.get('poster') or {}
     title = poster.get('title') or entry.get('name') or '?'
     year = poster.get('year')
-    label = '{0} ({1})'.format(title, year) if year else title
+    season = poster.get('season')
+    episode = poster.get('episode')
+    is_episode = season is not None and episode is not None
+
+    if is_episode:
+        episode_tag = 'S{0:02d}E{1:02d}'.format(int(season), int(episode))
+        episode_title = poster.get('episode_title')
+        label = '{0} {1}'.format(title, episode_tag)
+        if episode_title:
+            label += ' - {0}'.format(episode_title)
+    else:
+        label = '{0} ({1})'.format(title, year) if year else title
 
     list_item = xbmcgui.ListItem(label=label, offscreen=True)
     if poster.get('poster_url'):
@@ -344,22 +362,38 @@ def _build_vstream_item(base_url, entry):
 
     info = list_item.getVideoInfoTag()
     info.setTitle(label)
-    info.setMediaType('movie')
+    if is_episode:
+        info.setMediaType('episode')
+        info.setSeason(int(season))
+        info.setEpisode(int(episode))
+    else:
+        info.setMediaType('movie')
     if year:
         info.setYear(int(year))
 
     tmdb_id = poster.get('tmdb_id')
-    maybe_seed_vstream_resume(tmdb_id)
     from resources.lib.vstream_adapter import VStreamPastebinAdapter
     adapter = VStreamPastebinAdapter()
-    url = adapter.movie_url(tmdb_id, title=title, poster_url=poster.get('poster_url'))
+    if is_episode:
+        maybe_seed_vstream_resume(tmdb_id, season=season, episode=episode)
+        url = adapter.episode_url(tmdb_id, season, episode, title=title, smedia=poster.get('smedia'))
+    else:
+        maybe_seed_vstream_resume(tmdb_id)
+        url = adapter.movie_url(tmdb_id, title=title, poster_url=poster.get('poster_url'))
     return url, list_item, True
 
 
 def _add_remove_context_item(list_item, base_url, entry, watch_progress_info):
     if watch_progress_info.get('source') == 'vstream':
-        tmdb_id = (entry.get('poster') or {}).get('tmdb_id')
-        url = navigation.build_watch_action_url(base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id)
+        poster = entry.get('poster') or {}
+        tmdb_id = poster.get('tmdb_id')
+        season, episode = poster.get('season'), poster.get('episode')
+        if season is not None and episode is not None:
+            url = navigation.build_watch_action_url(
+                base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id, season=season, episode=episode,
+            )
+        else:
+            url = navigation.build_watch_action_url(base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id)
     else:
         url = navigation.build_watch_action_url(base_url, 'watch_clear', path=entry.get('path'))
     list_item.addContextMenuItems([

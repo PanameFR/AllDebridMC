@@ -176,3 +176,25 @@ class VStreamPastebinAdapter(object):
             % (smedia, tmdb_id, url)
         )
         return url
+
+    def episode_url(self, tmdb_id, season, episode, title=None, smedia=None):
+        """Saute directement a la liste des hebergeurs d'UN episode precis
+        (function=showHosters, comme movie_url) plutot que de passer par
+        showSerieSaisons puis showEpisodesLinks - verifie directement dans
+        pastebin.py::showEpisodesLinks() que c'est exactement le siteUrl
+        qu'il construit lui-meme pour chaque episode qu'il liste (son propre
+        siteUrl de saison + '&sEpisode=<N>'), avant d'appeler showHosters
+        dessus - jamais devine."""
+        smedia = smedia or DEFAULT_SMEDIA_FOR_TV
+        title = self._sanitize_title(title)
+        site_url = "vstreamlists&sMedia=%s&idTMDB=%s&sTitle=%s&sSaison=%02d&sEpisode=%s" % (
+            smedia, tmdb_id, title, int(season), episode,
+        )
+        url = self.build_vstream_url(
+            "showHosters", siteUrl=site_url, sMovieTitle=title
+        )
+        log.debug(
+            "built vStream route: media_type=tv-episode smedia=%s tmdb_id=%s season=%s episode=%s url=%s"
+            % (smedia, tmdb_id, season, episode, url)
+        )
+        return url

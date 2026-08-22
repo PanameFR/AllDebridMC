@@ -27,8 +27,23 @@ def _poll_and_report(reader):
     if not watch_progress.enabled():
         return
     device = watch_progress.device_name()
-    for tmdb_id, position, duration, resume_key in reader.poll():
-        watch_progress.report_vstream(tmdb_id, position, duration, device, resume_key)
+    try:
+        polled = reader.poll()
+    except Exception:
+        # Ne doit jamais remonter jusqu'a run() : une exception ici (bug de
+        # ce module, ligne inattendue en base...) stopperait alors
+        # DEFINITIVEMENT ce service pour le reste de la session Kodi (pas
+        # de try/except autour de la boucle while de run()) - deja arrive
+        # reellement avec un bug de signature corrige ici (voir git log),
+        # qui a fait taire ce service en silence apres son tout premier
+        # sondage avec un resultat non vide.
+        xbmc.log('[alldebridmc] service: erreur pendant poll()', xbmc.LOGERROR)
+        return
+    for tmdb_id, position, duration, resume_key, season, episode in polled:
+        try:
+            watch_progress.report_vstream(tmdb_id, position, duration, device, resume_key, season, episode)
+        except Exception:
+            xbmc.log('[alldebridmc] service: erreur pendant report_vstream()', xbmc.LOGERROR)
 
 
 class _StopTrigger(xbmc.Player):
