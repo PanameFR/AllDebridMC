@@ -408,9 +408,16 @@ def _render_show_seasons(base_url, handle, params):
     xbmcplugin.setContent(handle, 'seasons')
 
     items = []
-    for season in data.get('seasons') or []:
+    for season_entry in data.get('seasons') or []:
+        season = season_entry['season']
         li = xbmcgui.ListItem(label=ADDON.getLocalizedString(30314) % season, offscreen=True)
-        li.getVideoInfoTag().setMediaType('season')
+        info = li.getVideoInfoTag()
+        info.setMediaType('season')
+        info.setSeason(int(season))
+        if season_entry.get('overview'):
+            info.setPlot(season_entry['overview'])
+        if season_entry.get('poster_url'):
+            li.setArt({'thumb': season_entry['poster_url'], 'poster': season_entry['poster_url']})
         url = navigation.build_watch_action_url(
             base_url, 'watch_show_episodes', tmdb_id=tmdb_id, season=season,
             title=title or data.get('title') or '', smedia=smedia or data.get('smedia') or '',
@@ -457,10 +464,17 @@ def _render_show_episodes(base_url, handle, params):
         if progress and progress.get('resume_key'):
             vstream_db.seed_resume(progress['resume_key'], progress['position'], progress['duration'])
 
-        li = xbmcgui.ListItem(label=ADDON.getLocalizedString(30315) % episode, offscreen=True)
+        label = ADDON.getLocalizedString(30315) % episode
+        if entry.get('name'):
+            label += ' - {0}'.format(entry['name'])
+        li = xbmcgui.ListItem(label=label, offscreen=True)
         info = li.getVideoInfoTag()
         info.setMediaType('episode')
         info.setEpisode(int(episode))
+        if entry.get('overview'):
+            info.setPlot(entry['overview'])
+        if entry.get('poster_url'):
+            li.setArt({'thumb': entry['poster_url'], 'poster': entry['poster_url']})
         if progress:
             info.setResumePoint(float(progress['position']), float(progress['duration']))
         url = adapter.episode_url(tmdb_id_raw, season_raw, episode, title=title, smedia=smedia)

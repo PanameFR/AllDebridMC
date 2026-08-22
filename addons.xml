@@ -25,7 +25,7 @@
 </addon>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.12.0"
+       version="1.12.1"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -47,7 +47,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played. Playback resume is synced across all your Kodi devices via the server (movies AND TV episodes, precisely), with dedicated "In progress"/"History" screens for your local library and, read-only, for vStream/Pastebin content - a show is listed as itself, and tapping it opens Seasons then Episodes screens to find exactly where you left off, with real synced resume via vStream's own local database. Integrates with service.upnext (if installed) to automatically play the next episode of your local library. Full Kodi backup/restore built in (files, addons and their data, databases, artwork cache, profiles, settings): "Backup" in the root menu pushes an archive to the server (3 kept, oldest deleted automatically), and can restore one onto a blank Kodi to get the exact same setup on a new device (Android, Mac, Windows). Worth knowing: an addon with binary components compiled for a specific platform (e.g. inputstream.adaptive) may not work as-is after restoring onto a different platform.</description>
         <platform>all</platform>
         <license>GPL-3.0</license>
-        <news>1.12.0 : "En cours"/"Historique" n'affichent plus que la serie (jamais un episode precis) pour le contenu vStream/Pastebin. Un clic ouvre desormais nos propres ecrans Saisons puis Episodes (navigation complete, comme dans Mes Listes) - la reprise est semee uniquement pour l'episode qui en a reellement une, au moment ou cet episode precis est enfin connu, jamais avant.</news>
+        <news>1.12.1 : nos nouveaux ecrans Saisons/Episodes (voir 1.12.0) n'affichaient aucune information TMDB (ni affiche, ni resume, ni titre d'episode) - ajoute, en plus de la liste reelle des saisons/episodes disponibles (jamais changee).</news>
         <assets>
             <icon>icon.png</icon>
         </assets>
