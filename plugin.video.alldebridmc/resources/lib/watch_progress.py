@@ -272,7 +272,15 @@ def _action_open_vstream_movie(params):
     # ",replace" evite d'empiler un ecran intermediaire dans l'historique
     # retour de Kodi - revenir en arriere depuis vStream doit ramener a
     # l'ecran d'origine (Mes Listes/Recherche), pas a ce relais.
-    xbmc.executebuiltin('Container.Update(%s,replace)' % target)
+    # wait=True (2e argument) : sans ca, ce builtin est fire-and-forget et
+    # peut perdre la course contre le endOfDirectory(succeeded=False) que
+    # dispatch() renvoie juste apres pour CE repertoire-ci - Kodi annule
+    # alors parfois la redirection en cours, et vStream n'est jamais reellement
+    # invoque (confirme : aucune trace cote vStream dans les logs quand ca
+    # arrive, alors qu'une navigation manuelle vers le meme showHosters
+    # fonctionne toujours). wait=True force Kodi a traiter la mise a jour du
+    # container avant qu'on ne signale l'echec de celui-ci.
+    xbmc.executebuiltin('Container.Update(%s,replace)' % target, True)
 
 
 def _render_list(base_url, handle, action):
