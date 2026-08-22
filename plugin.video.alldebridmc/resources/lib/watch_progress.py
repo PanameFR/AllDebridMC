@@ -45,6 +45,8 @@ Import de navigation en tête (build_list_item) : c'est pour ça que
 navigation.py importe CE module en différé (voir route()/play_item()) et
 jamais l'inverse, pour éviter un cycle.
 """
+import threading
+
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -210,15 +212,13 @@ def dispatch(base_url, handle, params):
         return
 
     if action == 'watch_open_vstream_movie':
-        _action_open_vstream_movie(params)
-        # succeeded=True (repertoire vide mais "reussi"), pas False : ce
-        # repertoire ne sert qu'a declencher Container.Update vers vStream
-        # juste au-dessus. succeeded=False y a ete essaye avant - Kodi
-        # semblait alors parfois traiter ce repertoire-ci comme en echec
-        # et annuler la redirection en cours vers vStream, qui n'etait
-        # alors jamais reellement invoque (aucune trace cote vStream dans
-        # les logs). A verifier en conditions reelles.
+        target = _action_open_vstream_movie(params)
+        # succeeded=True (repertoire vide mais "reussi") : voir plus bas
+        # pour Container.Update, differe apres ce endOfDirectory - c'est la
+        # combinaison des deux qui compte ici, pas ce flag seul (essaye
+        # seul d'abord, insuffisant : voir _schedule_container_update).
         xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
+        _schedule_container_update(target)
         return
 
     _render_list(base_url, handle, action)
@@ -273,18 +273,42 @@ def _action_open_vstream_movie(params):
 
     from resources.lib.vstream_adapter import VStreamPastebinAdapter
     adapter = VStreamPastebinAdapter()
-    target = adapter.movie_url(
+    return adapter.movie_url(
         params.get('tmdb_id'), title=params.get('title'), poster_url=params.get('poster_url'),
     )
-    # ",replace" evite d'empiler un ecran intermediaire dans l'historique
-    # retour de Kodi - revenir en arriere depuis vStream doit ramener a
-    # l'ecran d'origine (Mes Listes/Recherche), pas a ce relais.
-    # NE JAMAIS passer wait=True ici : teste et cause un deadlock Kodi (le
-    # thread Python de CE repertoire est celui-la meme que le thread GUI
-    # attend pour continuer - confirme par un crash reel de Kodi pendant le
-    # test). Rester fire-and-forget ; voir dispatch() ci-dessous pour la
-    # vraie piste (succeeded=True au lieu de False).
-    xbmc.executebuiltin('Container.Update(%s,replace)' % target)
+
+
+def _schedule_container_update(target):
+    """Container.Update(...,replace) vers vStream, differe d'environ 300ms
+    apres notre propre endOfDirectory - PAS declenche directement depuis
+    _action_open_vstream_movie/dispatch() comme avant.
+
+    Deux essais precedents, tous les deux insuffisants seuls :
+    - executebuiltin fire-and-forget synchrone, succeeded=False : vStream
+      n'etait souvent jamais invoque du tout (aucune trace dans ses logs) -
+      Kodi semblait annuler la redirection en cours au profit du signal
+      d'echec de CE repertoire-ci.
+    - meme chose avec succeeded=True : vStream etait bien invoque cette
+      fois, MAIS son resultat atterrissait sur l'ecran D'AVANT (Mes
+      Listes), pas sur celui-ci - confirme en observant que "Retour"
+      depuis cet ecran (reste vide) revelait la liste des hebergeurs deja
+      construite. ",replace" fire DEPUIS le repertoire meme qu'il doit
+      remplacer, alors que Kodi n'a pas fini de l'empiler sur la pile de
+      navigation - il remplace alors l'ecran parent a la place.
+    - wait=True sur executebuiltin (pour forcer l'ordre) : deadlock reel de
+      Kodi (le thread Python de ce repertoire est celui-la meme que le
+      thread GUI attend pour continuer) - a bien cause un crash constate.
+
+    Un delai (thread separe, jamais wait=True) laisse Kodi finir d'empiler
+    ET de rendre ce repertoire AVANT que Container.Update ne parte - plus
+    d'ambiguite sur quelle entree de la pile ",replace" doit remplacer.
+    Meme pattern que renewPaste() dans vStream lui-meme (getLines()),
+    utilise pour une raison similaire (differer sans bloquer l'appel en
+    cours)."""
+    def _fire():
+        xbmc.executebuiltin('Container.Update(%s,replace)' % target)
+
+    threading.Timer(0.3, _fire).start()
 
 
 def _render_list(base_url, handle, action):
