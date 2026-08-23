@@ -123,12 +123,19 @@ def movie_info(tmdb_id):
 
 # ---- listes (partagées avec la page web /lists du serveur) ----------------
 
+LISTS_TIMEOUT = 25  # secondes - meme raison que BROWSE_TIMEOUT : l'enrichissement
+# d'une page (jusqu'a per_page elements, verification de disponibilite via
+# pastebin_catalog + metadonnees TMDB) peut depasser le TIMEOUT normal (8s)
+# sur un cache froid, surtout pour une grosse liste (rapporte reellement sur
+# la liste "Halloween", 190 elements) - resolu en reessayant une fois les
+# caches rechauffes, meme symptome que pour "Medias" avant le meme correctif.
+
 def list_lists():
     return _get('/api/kodi/lists').get('lists', [])
 
 
 def list_items(list_id, page=1, per_page=50):
-    return _get('/api/kodi/lists/{0}'.format(list_id), {'page': page, 'per_page': per_page})
+    return _get('/api/kodi/lists/{0}'.format(list_id), {'page': page, 'per_page': per_page}, timeout=LISTS_TIMEOUT)
 
 
 def create_list(name):
