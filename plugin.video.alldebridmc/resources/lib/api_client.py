@@ -193,8 +193,11 @@ def clear_watch_progress(path):
     _post('/api/kodi/watch-progress/clear', {'path': path})
 
 
-def list_watch_progress(status):
-    return _get('/api/kodi/watch-progress/list', {'status': status}).get('items', [])
+def list_watch_progress(status, category=None):
+    params = {'status': status}
+    if category:
+        params['category'] = category
+    return _get('/api/kodi/watch-progress/list', params).get('items', [])
 
 
 def post_watch_progress_vstream(

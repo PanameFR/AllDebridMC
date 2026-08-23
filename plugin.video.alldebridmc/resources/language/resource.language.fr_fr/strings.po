@@ -254,3 +254,31 @@ msgstr "Intervalle de rafraîchissement auto, en minutes (Listes) - 0 pour désa
 msgctxt "#30322"
 msgid "Kodi settings restored."
 msgstr "Paramètres Kodi restaurés."
+
+msgctxt "#30330"
+msgid "Movies"
+msgstr "Films"
+
+msgctxt "#30331"
+msgid "TV Shows"
+msgstr "Séries"
+
+msgctxt "#30332"
+msgid "Documentaries"
+msgstr "Documentaires"
+
+msgctxt "#30333"
+msgid "Replays"
+msgstr "Replay"
+
+msgctxt "#30334"
+msgid "Shows"
+msgstr "Spectacles"
+
+msgctxt "#30335"
+msgid "Animation"
+msgstr "Animations"
+
+msgctxt "#30336"
+msgid "Anime"
+msgstr "Animés"

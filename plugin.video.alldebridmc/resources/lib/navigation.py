@@ -37,6 +37,14 @@ def route(base_url, handle, params):
         _list_watch_menu(base_url, handle)
         return
 
+    if action == 'watch_in_progress_categories':
+        # "En cours" scinde par categorie Pastebin (demande explicitement :
+        # un ecran par categorie plutot qu'un seul fourre-tout) - simple
+        # menu de navigation, comme watch_home ci-dessus. "Historique" n'a
+        # PAS ce meme traitement (jamais demande), reste un seul ecran.
+        _list_watch_in_progress_categories_menu(base_url, handle)
+        return
+
     if action.startswith('watch_'):
         # Reprise de lecture synchronisee : ecrans "En cours"/"Historique",
         # geres dans leur propre module - meme raison que l'import differe
@@ -121,14 +129,50 @@ def _list_root_menu(base_url, handle):
 
 def _list_watch_menu(base_url, handle):
     """Sous-menu Visionnage : En cours / Historique - simple aiguillage,
-    aucune donnee a aller chercher ici (voir watch_progress.dispatch)."""
+    aucune donnee a aller chercher ici (voir watch_progress.dispatch).
+    "En cours" mene au menu de categories ci-dessous (demande explicitement :
+    un ecran par categorie Pastebin) - "Historique" reste un seul ecran,
+    jamais scinde (jamais demande)."""
     xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30260))
     xbmcplugin.setContent(handle, 'files')
 
     items = [
-        _build_watch_menu_item(base_url, 'watch_in_progress', 30250, 'DefaultInProgressShows.png'),
+        _build_watch_menu_item(base_url, 'watch_in_progress_categories', 30250, 'DefaultInProgressShows.png'),
         _build_watch_menu_item(base_url, 'watch_history', 30251, 'DefaultRecentlyAddedEpisodes.png'),
     ]
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
+
+
+# Cle interne (voir pastebin_catalog.CATEGORY_CODES cote serveur, memes
+# noms) -> id de chaine localisee pour le libelle du menu. Ordre = ordre
+# d'affichage, reprend celui donne par l'utilisateur.
+_WATCH_CATEGORIES = (
+    ('films', 30330),
+    ('series', 30331),
+    ('docus', 30332),
+    ('replay', 30333),
+    ('spectacles', 30334),
+    ('dessins_animes', 30335),
+    ('animes_japonais', 30336),
+)
+
+
+def _list_watch_in_progress_categories_menu(base_url, handle):
+    """Menu "En cours" scinde par categorie Pastebin - chaque entree mene
+    au meme ecran watch_in_progress qu'avant, filtre cote serveur (voir
+    api_client.list_watch_progress) par la categorie choisie."""
+    xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30250))
+    xbmcplugin.setContent(handle, 'files')
+
+    items = []
+    for category_key, label_id in _WATCH_CATEGORIES:
+        list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(label_id), offscreen=True)
+        list_item.setArt({'icon': 'DefaultInProgressShows.png'})
+        url = _build_url(base_url, action='watch_in_progress', category=category_key)
+        items.append((url, list_item, True))
+
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
     xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)

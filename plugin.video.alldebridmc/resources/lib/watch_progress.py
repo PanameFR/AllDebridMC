@@ -277,7 +277,7 @@ def dispatch(base_url, handle, params):
         _render_show_episodes(base_url, handle, params)
         return
 
-    _render_list(base_url, handle, action)
+    _render_list(base_url, handle, action, params)
 
 
 def _action_clear(params):
@@ -342,14 +342,19 @@ def maybe_seed_vstream_resume(tmdb_id, season=None, episode=None):
         vstream_db.seed_resume(progress['resume_key'], progress['position'], progress['duration'])
 
 
-def _render_list(base_url, handle, action):
+def _render_list(base_url, handle, action, params):
     status = _STATUS_BY_ACTION.get(action)
     if status is None:
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
 
+    # "En cours <categorie>" (Films/Series/Documentaires/...) - absent pour
+    # "Historique", qui reste un seul ecran fourre-tout (jamais scinde,
+    # jamais demande) - voir navigation._WATCH_CATEGORIES pour le libelle.
+    category = params.get('category')
+
     try:
-        entries = api_client.list_watch_progress(status)
+        entries = api_client.list_watch_progress(status, category=category)
     except api_client.ApiError:
         xbmcgui.Dialog().notification(
             ADDON_NAME, ADDON.getLocalizedString(30012), xbmcgui.NOTIFICATION_ERROR, 5000,
@@ -357,7 +362,12 @@ def _render_list(base_url, handle, action):
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
 
-    xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(_LABEL_BY_ACTION[action]))
+    label = ADDON.getLocalizedString(_LABEL_BY_ACTION[action])
+    if category:
+        category_label_id = dict(navigation._WATCH_CATEGORIES).get(category)
+        if category_label_id:
+            label = '%s - %s' % (label, ADDON.getLocalizedString(category_label_id))
+    xbmcplugin.setPluginCategory(handle, label)
     xbmcplugin.setContent(handle, 'episodes' if any(e.get('episode_info') for e in entries) else 'movies')
 
     items = []
