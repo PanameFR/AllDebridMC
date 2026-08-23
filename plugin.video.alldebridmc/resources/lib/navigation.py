@@ -147,6 +147,13 @@ def _list_watch_menu(base_url, handle):
 # Cle interne (voir pastebin_catalog.CATEGORY_CODES cote serveur, memes
 # noms) -> id de chaine localisee pour le libelle du menu. Ordre = ordre
 # d'affichage, reprend celui donne par l'utilisateur.
+#
+# La derniere entree, "_unclassified" (voir UNCLASSIFIED_CATEGORY cote
+# serveur), n'est pas une categorie Pastebin : elle rassemble ce qui
+# n'appartient a aucune des 7 autres - typiquement un contenu retire du
+# catalogue depuis qu'il a ete regarde. Sans elle, ces entrees seraient
+# inatteignables depuis l'interface (il n'existe plus d'ecran "tout"
+# depuis la scission par categorie).
 _WATCH_CATEGORIES = (
     ('films', 30330),
     ('series', 30331),
@@ -155,6 +162,7 @@ _WATCH_CATEGORIES = (
     ('spectacles', 30334),
     ('dessins_animes', 30335),
     ('animes_japonais', 30336),
+    ('_unclassified', 30337),
 )
 
 # action=... (categories) -> (action=... cible reelle, id de chaine du

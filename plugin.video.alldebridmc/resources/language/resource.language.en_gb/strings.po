@@ -282,3 +282,7 @@ msgstr ""
 msgctxt "#30336"
 msgid "Anime"
 msgstr ""
+
+msgctxt "#30337"
+msgid "Other"
+msgstr ""
