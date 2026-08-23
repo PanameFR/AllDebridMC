@@ -174,7 +174,14 @@ def run():
         xbmc.log('[alldebridmc] service: erreur pendant _apply_pending_settings_restore()', xbmc.LOGERROR)
 
     reader = vstream_db.VStreamDbReader()
-    player = _StopTrigger(reader)
+    # NE PAS SUPPRIMER cette variable, meme si aucun analyseur ne la voit
+    # utilisee : elle garde une reference vivante sur le xbmc.Player, sans
+    # laquelle il serait ramasse par le GC et les callbacks
+    # onPlayBackStopped/Ended cesseraient silencieusement d'arriver - la
+    # detection de fin de lecture vStream s'arreterait sans aucune erreur
+    # visible. Sa portee (locale a run(), qui tourne toute la session)
+    # suffit a le maintenir en vie.
+    player = _StopTrigger(reader)  # noqa: F841
     monitor = xbmc.Monitor()
     elapsed_since_refresh = 0
 

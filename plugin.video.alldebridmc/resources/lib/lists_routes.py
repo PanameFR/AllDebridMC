@@ -17,6 +17,9 @@ from resources.lib import api_client
 from resources.lib.vstream_adapter import VStreamPastebinAdapter
 from resources.lib import lists_gui
 from resources.lib import lists_dialogs as dialogs
+# Sans risque de cycle : lists_gui (importe juste au-dessus) importe deja
+# navigation en tete, il est donc forcement charge a ce stade.
+from resources.lib import navigation
 
 ADDON_NAME = "AllDebrid Media Center"
 ADDON = xbmcaddon.Addon()
@@ -38,12 +41,11 @@ def _int(value):
 
 
 def _handle_api_error(exc):
-    if isinstance(exc, api_client.AuthError):
-        dialogs.notify(ADDON_NAME, "Identifiants serveur invalides (reglages de l'addon).")
-    elif isinstance(exc, api_client.ValidationError):
-        dialogs.notify(ADDON_NAME, str(exc))
-    else:
-        dialogs.notify(ADDON_NAME, "Impossible de joindre le serveur.")
+    """Delegue a l'implementation unique et localisee de navigation.py -
+    ce module en avait sa propre copie avec des messages francais codes en
+    dur. Wrapper conserve (plutot que 16 appels reecrits) : le nom local
+    reste le point d'entree naturel ici."""
+    navigation.handle_api_error(exc)
 
 
 # ---- gestion des listes ---------------------------------------------------
@@ -124,7 +126,9 @@ def action_search_pastebin_prompt(base_url, params):
 def action_add_search_result(base_url, params):
     media_type = params.get("media_type")
     tmdb_id = _int(params.get("tmdb_id"))
-    smedia = params.get("smedia")
+    # smedia n'est volontairement pas relu des params : le serveur le
+    # redetermine depuis le catalogue Pastebin a l'ajout (voir
+    # _validate_vstream dans lists_store.py).
 
     try:
         lists = api_client.list_lists()

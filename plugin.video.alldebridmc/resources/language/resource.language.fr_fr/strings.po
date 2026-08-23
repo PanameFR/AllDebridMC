@@ -79,10 +79,6 @@ msgctxt "#30102"
 msgid "Metadata language"
 msgstr "Langue des métadonnées"
 
-msgctxt "#30103"
-msgid "Cache duration (hours)"
-msgstr "Durée du cache (heures)"
-
 msgctxt "#30104"
 msgid "Show list item count"
 msgstr "Afficher le nombre d'éléments"
@@ -186,10 +182,6 @@ msgstr "Téléchargement de la sauvegarde..."
 msgctxt "#30305"
 msgid "Restoring files..."
 msgstr "Restauration des fichiers..."
-
-msgctxt "#30306"
-msgid "Restoring settings..."
-msgstr "Restauration des paramètres..."
 
 msgctxt "#30307"
 msgid "Finishing up..."

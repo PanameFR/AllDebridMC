@@ -348,9 +348,9 @@ def _render_list(base_url, handle, action, params):
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
 
-    # "En cours <categorie>" (Films/Series/Documentaires/...) - absent pour
-    # "Historique", qui reste un seul ecran fourre-tout (jamais scinde,
-    # jamais demande) - voir navigation._WATCH_CATEGORIES pour le libelle.
+    # Categorie (Films/Series/Documentaires/... ou "Autres") - s'applique
+    # de la meme facon a "En cours" et a "Historique", tous deux scindes
+    # par categorie. Absent = toutes categories confondues.
     category = params.get('category')
 
     try:
@@ -364,9 +364,9 @@ def _render_list(base_url, handle, action, params):
 
     label = ADDON.getLocalizedString(_LABEL_BY_ACTION[action])
     if category:
-        category_label_id = dict(navigation._WATCH_CATEGORIES).get(category)
-        if category_label_id:
-            label = '%s - %s' % (label, ADDON.getLocalizedString(category_label_id))
+        category_label = navigation.watch_category_label(category)
+        if category_label:
+            label = '%s - %s' % (label, category_label)
     xbmcplugin.setPluginCategory(handle, label)
     xbmcplugin.setContent(handle, 'episodes' if any(e.get('episode_info') for e in entries) else 'movies')
 

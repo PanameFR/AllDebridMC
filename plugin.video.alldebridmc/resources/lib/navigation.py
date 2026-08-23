@@ -87,9 +87,20 @@ def _notify(message, error=False):
     xbmcgui.Dialog().notification(ADDON_NAME, message, icon, 5000)
 
 
-def _handle_api_error(exc):
+def handle_api_error(exc):
+    """Notification unique pour toute erreur d'appel serveur - publique et
+    partagee : lists_routes.py en avait sa propre copie, avec des messages
+    francais codes en dur (donc non traduisibles) et une icone/duree
+    differentes pour la meme situation. Une seule implementation ici, sur
+    les chaines localisees.
+
+    ValidationError porte un message deja lisible construit par le serveur
+    (ex : element absent de la source Pastebin) - on l'affiche tel quel,
+    c'est plus precis que n'importe quel texte generique."""
     if isinstance(exc, api_client.AuthError):
         _notify(ADDON.getLocalizedString(30013), error=True)
+    elif isinstance(exc, api_client.ValidationError):
+        _notify(str(exc), error=True)
     else:
         _notify(ADDON.getLocalizedString(30012), error=True)
 
@@ -172,6 +183,19 @@ _WATCH_CATEGORY_MENUS = {
     'watch_in_progress_categories': ('watch_in_progress', 30250, 'DefaultInProgressShows.png'),
     'watch_history_categories': ('watch_history', 30251, 'DefaultRecentlyAddedEpisodes.png'),
 }
+
+
+def watch_category_label(category):
+    """Libelle localise d'une categorie "En cours"/"Historique", ou None si
+    la cle est inconnue. Accesseur public : watch_progress.py en a besoin
+    pour titrer son ecran, et lisait auparavant _WATCH_CATEGORIES
+    directement - une constante privee d'un autre module, alors que les
+    deux sont deja lies par un cycle d'imports gere a la main (navigation
+    importe watch_progress en differe, jamais l'inverse)."""
+    for key, label_id in _WATCH_CATEGORIES:
+        if key == category:
+            return ADDON.getLocalizedString(label_id)
+    return None
 
 
 def _list_watch_categories_menu(base_url, handle, menu_action):
@@ -277,7 +301,7 @@ def _list_backup_menu(base_url, handle):
     try:
         backups = kodi_backup.list_backups()
     except api_client.ApiError as exc:
-        _handle_api_error(exc)
+        handle_api_error(exc)
         backups = []
 
     for backup in backups:
@@ -360,7 +384,7 @@ def list_directory(base_url, handle, path):
     try:
         data = api_client.browse(path)
     except api_client.ApiError as exc:
-        _handle_api_error(exc)
+        handle_api_error(exc)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
 
@@ -656,7 +680,7 @@ def show_movie_info(handle, params):
     try:
         data = api_client.movie_info(tmdb_id)
     except api_client.ApiError as exc:
-        _handle_api_error(exc)
+        handle_api_error(exc)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
 

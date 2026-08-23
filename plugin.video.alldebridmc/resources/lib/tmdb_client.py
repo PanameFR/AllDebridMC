@@ -5,6 +5,13 @@ et recuperer ses metadonnees d'affichage pour les listes - separe du
 proxy /api/kodi/movie-info du serveur AllDebridMC (qui ne couvre que les
 films deja associes dans la bibliotheque locale, pas la recherche libre
 ni les series).
+
+Portee volontairement reduite a la RECHERCHE (search_movie/search_tv) :
+c'est le seul usage reel, depuis lists_context.py, quand l'URL vStream
+d'un item n'embarque pas son tmdb_id. Les methodes de detail heritees du
+portage (get_movie/get_tv/refresh_metadata/image_url) ont ete retirees -
+elles n'etaient appelees que les unes par les autres, jamais depuis
+l'exterieur ; tout le reste des metadonnees vient deja du serveur.
 """
 import json
 import urllib.parse
@@ -14,7 +21,6 @@ import urllib.error
 from resources.lib import log
 
 TMDB_API_BASE = "https://api.themoviedb.org/3"
-TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/"
 
 
 class TmdbError(Exception):
@@ -66,24 +72,16 @@ class TmdbClient(object):
         data = self._request("/search/tv", params)
         return [self._normalize_tv(r) for r in data.get("results", [])]
 
-    # ---- details -------------------------------------------------------
-
-    def get_movie(self, tmdb_id):
-        data = self._request("/movie/%s" % tmdb_id)
-        return self._normalize_movie(data, detailed=True)
-
-    def get_tv(self, tmdb_id):
-        data = self._request("/tv/%s" % tmdb_id)
-        return self._normalize_tv(data, detailed=True)
-
-    def refresh_metadata(self, media_type, tmdb_id):
-        if media_type == "movie":
-            return self.get_movie(tmdb_id)
-        return self.get_tv(tmdb_id)
-
     # ---- normalization -------------------------------------------------
 
-    def _normalize_movie(self, r, detailed=False):
+    # Forme de dict volontairement conservee telle quelle (meme si seuls
+    # tmdb_id/title/year sont lus aujourd'hui, voir lists_dialogs.
+    # choose_tmdb_result) : c'est le contrat de sortie de la recherche.
+    # "genres" reste toujours vide et "runtime" toujours None pour un film -
+    # ces deux champs n'etaient renseignes que par les methodes de detail,
+    # retirees (voir la docstring en tete de module).
+
+    def _normalize_movie(self, r):
         year = (r.get("release_date") or "")[:4] or None
         return {
             "media_type": "movie",
@@ -94,12 +92,12 @@ class TmdbClient(object):
             "overview": r.get("overview"),
             "poster_path": r.get("poster_path"),
             "backdrop_path": r.get("backdrop_path"),
-            "genres": self._genre_names(r, detailed),
-            "runtime": r.get("runtime") if detailed else None,
+            "genres": [],
+            "runtime": None,
             "rating": r.get("vote_average"),
         }
 
-    def _normalize_tv(self, r, detailed=False):
+    def _normalize_tv(self, r):
         year = (r.get("first_air_date") or "")[:4] or None
         return {
             "media_type": "tv",
@@ -110,19 +108,7 @@ class TmdbClient(object):
             "overview": r.get("overview"),
             "poster_path": r.get("poster_path"),
             "backdrop_path": r.get("backdrop_path"),
-            "genres": self._genre_names(r, detailed),
+            "genres": [],
             "runtime": (r.get("episode_run_time") or [None])[0],
             "rating": r.get("vote_average"),
         }
-
-    @staticmethod
-    def _genre_names(r, detailed):
-        if detailed:
-            return [g.get("name") for g in r.get("genres", []) if g.get("name")]
-        return []
-
-    @staticmethod
-    def image_url(path, size="w500"):
-        if not path:
-            return None
-        return "%s%s%s" % (TMDB_IMAGE_BASE, size, path)

@@ -31,7 +31,9 @@ def run(path, title, year, dbtype):
         return
 
     addon = xbmcaddon.Addon()
-    smedia = adapter.extract_smedia(path)
+    # Pas de smedia extrait ici : le serveur le redetermine lui-meme depuis
+    # le catalogue Pastebin a l'ajout (voir _validate_vstream dans
+    # lists_store.py), il n'a donc jamais besoin d'etre transmis.
     media_type = adapter.extract_media_type(path)
     tmdb_id = adapter.extract_tmdb_id(path)
 
