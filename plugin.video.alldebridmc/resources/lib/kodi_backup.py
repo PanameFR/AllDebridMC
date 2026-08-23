@@ -56,6 +56,17 @@ _CONFIG_EXTRA_DIRS = ['keymaps', 'peripheral_data', 'library']
 _ADDONS_EXCLUDE = ['packages', 'temp', ADDON_ID]
 _META_MEMBERS = ('kodi_settings.json', 'backup_meta.json')
 
+# Composants binaires compiles (n'importe quel addon, pas seulement le
+# notre) - Kodi les charge en memoire (ex: un addon VFS comme vfs.sftp),
+# et Windows refuse d'ecrire par-dessus un fichier charge par un processus
+# actif (constate reellement : PermissionError sur vfs.sftp.dll pendant
+# une restauration). Jamais utile de toute facon : deja documente dans la
+# description de l'addon que le binaire d'un addon est specifique a la
+# plateforme/architecture - celui deja installe sur l'appareil cible (s'il
+# y en a un) est forcement le bon pour CET appareil, celui de la
+# sauvegarde ne l'est pas forcement meme sur la meme plateforme.
+_BINARY_EXTENSIONS = ('.dll', '.so', '.dylib', '.pyd')
+
 _TEMP_DIR = 'special://temp/alldebridmc_backup/'
 
 # Prefixes de reglages propres au MATERIEL de l'appareil (ecran, sortie
@@ -341,13 +352,26 @@ def run_restore(progress, backup_name):
                     # restaures, memes raisons (Permission Denied constate
                     # en ecrasant le code en train de s'executer).
                     continue
+                if category == 'addons' and relative.lower().endswith(_BINARY_EXTENSIONS):
+                    # Meme raison que ci-dessus, pour N'IMPORTE QUEL addon
+                    # binaire (constate reellement sur vfs.sftp.dll) - voir
+                    # _BINARY_EXTENSIONS plus haut.
+                    continue
 
                 dest_root = xbmcvfs.translatePath(root_special)
                 dest_path = os.path.join(dest_root, *relative.split('/'))
                 os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
-                with zf.open(member) as source, open(dest_path, 'wb') as target:
-                    shutil.copyfileobj(source, target)
+                try:
+                    with zf.open(member) as source, open(dest_path, 'wb') as target:
+                        shutil.copyfileobj(source, target)
+                except OSError as exc:
+                    # Un seul fichier verrouille (raison quelconque, pas
+                    # forcement repertoriee ci-dessus) ne doit jamais faire
+                    # echouer TOUTE la restauration - ignore ce fichier,
+                    # continue avec les suivants, trace dans kodi.log.
+                    _log('Fichier ignore pendant la restauration ({0}) : {1}'.format(member, exc))
+                    continue
 
         if own_device_name:
             ADDON.setSetting('device_name', own_device_name)
