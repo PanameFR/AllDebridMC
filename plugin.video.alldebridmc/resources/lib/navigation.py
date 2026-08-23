@@ -266,7 +266,12 @@ def _run_backup_action(handle):
         if success:
             _notify(ADDON.getLocalizedString(30310), error=False)
         elif error:
-            _notify(error, error=True)
+            # Dialog().ok (modale, texte complet) plutot qu'une notification
+            # toast (tronquee a quelques mots) : une erreur de sauvegarde
+            # est rare et doit rester lisible en entier - notamment le
+            # chemin de fichier complet d'une PermissionError, indispensable
+            # pour diagnostiquer sans acces aux logs de l'appareil.
+            xbmcgui.Dialog().ok(ADDON.getLocalizedString(30300), error)
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
 
@@ -284,7 +289,7 @@ def _run_restore_action(handle, backup_name):
                 ):
                     xbmc.executebuiltin('Quit')
             elif error:
-                _notify(error, error=True)
+                xbmcgui.Dialog().ok(ADDON.getLocalizedString(30300), error)
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
 

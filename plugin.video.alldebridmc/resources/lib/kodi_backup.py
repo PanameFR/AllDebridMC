@@ -19,6 +19,7 @@ correctement de son côté sur chaque plateforme.
 import json
 import os
 import shutil
+import traceback
 import uuid
 import zipfile
 
@@ -265,6 +266,12 @@ def run_backup(progress):
     except api_client.ApiError as exc:
         return False, str(exc)
     except (OSError, zipfile.BadZipFile) as exc:
+        # str(exc) seul (ex: PermissionError) est ce qui s'affiche a
+        # l'utilisateur (Dialog().ok, voir navigation.py) - le traceback
+        # complet part aussi dans kodi.log, jamais accessible a distance
+        # (bloque par le serveur web de Kodi, constate), donc uniquement
+        # utile si l'utilisateur peut le partager lui-meme.
+        _log('Echec de la sauvegarde : {0}'.format(traceback.format_exc()))
         return False, str(exc)
     finally:
         progress.close()
@@ -359,6 +366,7 @@ def run_restore(progress, backup_name):
     except api_client.ApiError as exc:
         return False, str(exc)
     except (zipfile.BadZipFile, OSError) as exc:
+        _log('Echec de la restauration : {0}'.format(traceback.format_exc()))
         return False, str(exc)
     finally:
         progress.close()
