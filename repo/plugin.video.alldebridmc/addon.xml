@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.17.0"
+       version="1.17.1"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -23,7 +23,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Includes the Lists feature (merged from vStream Listes): build personal lists mixing vStream/Pastebin content and your own local library, each redirected to the right source automatically when played. Playback resume is synced across all your Kodi devices via the server (movies AND TV episodes, precisely), with dedicated "In progress"/"History" screens for your local library and, read-only, for vStream/Pastebin content - a show is listed as itself, and tapping it opens Seasons then Episodes screens to find exactly where you left off, with real synced resume via vStream's own local database. Integrates with service.upnext (if installed) to automatically play the next episode of your local library. Full Kodi backup/restore built in (files, addons and their data, databases, artwork cache, profiles, settings): "Backup" in the root menu pushes an archive to the server (3 kept, oldest deleted automatically), and can restore one onto a blank Kodi to get the exact same setup on a new device (Android, Mac, Windows). Worth knowing: an addon with binary components compiled for a specific platform (e.g. inputstream.adaptive) may not work as-is after restoring onto a different platform.</description>
         <platform>all</platform>
         <license>GPL-3.0</license>
-        <news>1.17.0 : "En cours" est desormais scinde par categorie (Films, Series, Documentaires, Replay, Spectacles, Animations, Animes) au lieu d'un seul ecran fourre-tout - chaque media classe selon sa categorie Pastebin d'origine (ou son type pour la bibliotheque locale). "Historique" reste inchange, un seul ecran.</news>
+        <news>1.17.1 : "Historique" est desormais scinde par categorie exactement comme "En cours" (Films, Series, Documentaires, Replay, Spectacles, Animations, Animes), au lieu d'un seul ecran fourre-tout.</news>
         <assets>
             <icon>icon.png</icon>
         </assets>
