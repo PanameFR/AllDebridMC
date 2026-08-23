@@ -170,7 +170,7 @@
                 </setting>
                 <setting id="lists_refresh_interval_minutes" type="integer" label="30321" help="">
                     <level>0</level>
-                    <default>0</default>
+                    <default>30</default>
                     <constraints>
                         <minimum>0</minimum>
                         <maximum>60</maximum>

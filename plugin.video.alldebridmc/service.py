@@ -16,22 +16,43 @@ dans le processus du script de lecture, cf. resources/lib/watch_progress.py) -
 aucun rapport en double possible, ce service ne lit jamais que la base de
 vStream, jamais nos propres chemins SMB.
 
-Rafraichissement automatique (lists_refresh_interval_minutes, 0 = desactive) :
-demande explicitement par l'utilisateur pour un Kodi laisse allume en
-continu - contrairement a l'action "Rafraichir" manuelle (navigation.
-run_refresh_action, RunPlugin depuis un clic), qui elle DOIT rester dans
-le processus plugin ephemere (seul endroit ou notifier a du sens), le
-declenchement PERIODIQUE ne peut venir que d'ici : un plugin Kodi ne
-tourne que le temps de repondre a UNE requete puis se termine, il ne
-peut pas se re-declencher tout seul depuis l'interieur d'un ecran deja
+Rafraichissement automatique (lists_refresh_interval_minutes, 0 = desactive,
+30 par defaut) : demande explicitement par l'utilisateur pour un Kodi
+laisse allume en continu - contrairement a l'action "Rafraichir" manuelle
+(navigation.run_refresh_action, RunPlugin depuis un clic), qui elle DOIT
+rester dans le processus plugin ephemere (seul endroit ou notifier a du
+sens), le declenchement PERIODIQUE ne peut venir que d'ici : un plugin
+Kodi ne tourne que le temps de repondre a UNE requete puis se termine, il
+ne peut pas se re-declencher tout seul depuis l'interieur d'un ecran deja
 affiche. Deux regles imposees par l'utilisateur, toutes les deux
-verifiees ici avant tout Container.Refresh :
+verifiees ici avant tout rafraichissement :
 - JAMAIS de notification pour un rafraichissement automatique (seul le
   clic manuel en montre une) - respecte simplement en n'appelant jamais
   navigation.run_refresh_action()/_notify() depuis ce chemin, qui se
   contente de xbmc.executebuiltin direct.
 - JAMAIS pendant une lecture en cours, meme si l'ecran affiche au moment
   du declenchement etait un des notres avant de lancer la lecture.
+
+Pour les ecrans de reprise de lecture (watch_in_progress/watch_history)
+ET l'ecran d'accueil natif (voir plus bas pourquoi l'accueil a besoin
+d'un traitement different) : ne rafraichit que si le serveur signale un
+changement REEL depuis la derniere fois (watch_progress.
+server_has_new_watch_progress, horodatage cote serveur mis a jour a
+chaque ecriture de progression - voir watch_progress.py sur le Pi),
+jamais sur une simple minuterie aveugle - demande explicitement suite au
+widget "En cours" d'un skin (Arctic Horizon 2) ne refletant pas une
+reprise synchronisee depuis un autre appareil sans rafraichissement
+manuel. Les ecrans de listes (lists_home/lists_show) gardent eux le
+comportement d'origine (minuterie simple), un changement de contenu de
+liste n'etant pas signale par ce meme horodatage.
+
+Ecran d'accueil : Container.Refresh ne rafraichit que le CONTENEUR qui a
+le focus (deja etabli) - sur l'accueil, avec plusieurs widgets, rien ne
+garantit que ce soit le bon. ReloadSkin() recharge tout, widgets compris,
+de facon fiable quel que soit le skin (verifie contre le code source de
+Kodi : SkinBuiltins.cpp) - plus lourd visuellement (bref clignotement),
+mais rare (throttle par l'intervalle, jamais sans changement reel confirme
+par le serveur, jamais en lecture).
 
 Termine aussi, a CHAQUE demarrage (tout premier appel de run(), avant la
 boucle), une restauration Kodi laissee en attente par kodi_backup.py -
@@ -50,7 +71,8 @@ POLL_INTERVAL = 30  # secondes entre deux sondages periodiques de secours
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
 _BASE_URL = 'plugin://plugin.video.alldebridmc/'
-_REFRESHABLE_ACTIONS = ('action=lists_home', 'action=lists_show', 'action=watch_in_progress', 'action=watch_history')
+_LISTS_ACTIONS = ('action=lists_home', 'action=lists_show')
+_WATCH_PROGRESS_ACTIONS = ('action=watch_in_progress', 'action=watch_history')
 
 
 def _poll_and_report(reader):
@@ -106,12 +128,26 @@ def _maybe_auto_refresh():
     notification n'apparait pour un rafraichissement automatique."""
     if xbmc.Player().isPlaying():
         return
+
     current_path = xbmc.getInfoLabel('Container.FolderPath')
-    if not current_path.startswith(_BASE_URL):
+    on_own_screen = current_path.startswith(_BASE_URL)
+
+    if on_own_screen and any(action in current_path for action in _LISTS_ACTIONS):
+        xbmc.executebuiltin('Container.Refresh')
         return
-    if not any(action in current_path for action in _REFRESHABLE_ACTIONS):
+
+    on_watch_screen = on_own_screen and any(action in current_path for action in _WATCH_PROGRESS_ACTIONS)
+    on_home_screen = xbmc.getCondVisibility('Window.IsActive(home)')
+    if not (on_watch_screen or on_home_screen):
         return
-    xbmc.executebuiltin('Container.Refresh')
+
+    if not watch_progress.server_has_new_watch_progress():
+        return
+
+    if on_home_screen:
+        xbmc.executebuiltin('ReloadSkin()')
+    else:
+        xbmc.executebuiltin('Container.Refresh')
 
 
 class _StopTrigger(xbmc.Player):

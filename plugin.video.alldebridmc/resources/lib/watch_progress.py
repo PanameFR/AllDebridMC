@@ -47,15 +47,20 @@ Import de navigation en tête (build_list_item) : c'est pour ça que
 navigation.py importe CE module en différé (voir route()/play_item()) et
 jamais l'inverse, pour éviter un cycle.
 """
+import json
+import os
+
 import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
 
 from resources.lib import api_client, navigation, vstream_db
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
+ADDON_ID = ADDON.getAddonInfo('id')
 
 HEARTBEAT_INTERVAL = 20  # secondes entre deux rapports pendant la lecture
 START_TIMEOUT = 45  # secondes max d'attente que la lecture demarre vraiment
@@ -76,6 +81,56 @@ def device_name():
         return (ADDON.getSettingString('device_name') or '').strip()
     except (AttributeError, TypeError):
         return ''
+
+
+_LAST_SEEN_UPDATE_FILENAME = 'last_seen_watch_progress_update.json'
+
+
+def _last_seen_update_path():
+    root = xbmcvfs.translatePath('special://home/userdata/addon_data/{0}/'.format(ADDON_ID))
+    return os.path.join(root, _LAST_SEEN_UPDATE_FILENAME)
+
+
+def _read_last_seen_update():
+    try:
+        with open(_last_seen_update_path(), 'r', encoding='utf-8') as fh:
+            return json.load(fh).get('updated_at')
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def _write_last_seen_update(value):
+    path = _last_seen_update_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as fh:
+            json.dump({'updated_at': value}, fh)
+    except OSError:
+        pass
+
+
+def server_has_new_watch_progress():
+    """Utilise par service.py pour ne rafraichir un ecran (dont l'accueil,
+    voir _maybe_auto_refresh) que quand une synchronisation a REELLEMENT eu
+    lieu depuis un autre appareil - jamais sur une simple minuterie
+    aveugle. Compare l'horodatage du serveur (petit fichier, jamais
+    d'enrichissement - cf. api_client.get_watch_progress_last_updated) au
+    dernier vu localement (fichier a part, pas un reglage de l'addon -
+    meme logique que le marqueur de kodi_backup.py)."""
+    try:
+        remote = api_client.get_watch_progress_last_updated()
+    except api_client.ApiError:
+        return False
+
+    remote_value = remote.get('updated_at') if isinstance(remote, dict) else None
+    if not remote_value:
+        return False
+
+    if remote_value == _read_last_seen_update():
+        return False
+
+    _write_last_seen_update(remote_value)
+    return True
 
 
 def _format_time(seconds):

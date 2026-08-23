@@ -235,6 +235,13 @@ def clear_watch_progress_vstream(tmdb_id, season=None, episode=None):
     _post('/api/kodi/watch-progress/clear', payload)
 
 
+def get_watch_progress_last_updated():
+    # Lecture d'un petit fichier cote serveur, jamais d'enrichissement -
+    # le TIMEOUT normal (8s) suffit largement, aucun besoin d'un delai
+    # dedie comme BROWSE_TIMEOUT/LISTS_TIMEOUT.
+    return _get('/api/kodi/watch-progress/last-updated')
+
+
 # ---- sauvegarde/restauration Kodi (kodi_backup.py sur le serveur) ---------
 
 BACKUP_TIMEOUT = 60  # secondes - un chunk peut prendre du temps sur un reseau lent
