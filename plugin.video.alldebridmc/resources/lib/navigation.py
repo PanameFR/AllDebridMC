@@ -105,6 +105,27 @@ def handle_api_error(exc):
         _notify(ADDON.getLocalizedString(30012), error=True)
 
 
+def device_identity():
+    """Nom configure de cet appareil + versions, tels qu'annonces au
+    serveur (voir api_client.ping) pour sa page Reglages. Le nom vient du
+    meme reglage device_name qui etiquette deja les reprises de lecture -
+    jamais un nom invente ici. Ne leve jamais : une identite incomplete
+    vaut mieux qu'un ping qui echoue."""
+    try:
+        device = (ADDON.getSettingString('device_name') or '').strip()
+    except (AttributeError, TypeError):
+        device = ''
+    try:
+        kodi_version = xbmc.getInfoLabel('System.BuildVersion').split(' ')[0]
+    except Exception:
+        kodi_version = ''
+    return {
+        'device': device,
+        'addon_version': ADDON.getAddonInfo('version'),
+        'kodi_version': kodi_version,
+    }
+
+
 def _watch_progress_enabled():
     # Meme garde defensive que _show_count() dans lists_routes.py : un
     # reglage tout juste ajoute par une mise a jour peut ne pas encore
@@ -712,7 +733,9 @@ def show_movie_info(handle, params):
 
 def test_connection(handle):
     try:
-        api_client.ping()
+        # En profite pour annoncer l'appareil au serveur (nom + versions),
+        # qui les affiche sur sa page Reglages - voir api_client.ping.
+        api_client.ping(**device_identity())
     except api_client.AuthError:
         _notify(ADDON.getLocalizedString(30013), error=True)
     except api_client.ApiError:

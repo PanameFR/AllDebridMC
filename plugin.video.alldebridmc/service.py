@@ -167,11 +167,31 @@ class _StopTrigger(xbmc.Player):
         _poll_and_report(self.reader)
 
 
+ANNOUNCE_INTERVAL = 6 * 3600  # secondes entre deux annonces au serveur
+
+
+def _announce_device():
+    """Fait connaitre cet appareil au serveur (nom configure + versions),
+    qui les affiche sur sa page Reglages - voir kodi_api.record_device cote
+    serveur. Purement informatif : un echec (serveur eteint, reseau coupe)
+    est sans consequence, on reessaiera a la prochaine echeance."""
+    from resources.lib import api_client, navigation
+    try:
+        api_client.ping(**navigation.device_identity())
+    except api_client.ApiError:
+        pass
+
+
 def run():
     try:
         _apply_pending_settings_restore()
     except Exception:
         xbmc.log('[alldebridmc] service: erreur pendant _apply_pending_settings_restore()', xbmc.LOGERROR)
+
+    try:
+        _announce_device()
+    except Exception:
+        xbmc.log('[alldebridmc] service: erreur pendant _announce_device()', xbmc.LOGERROR)
 
     reader = vstream_db.VStreamDbReader()
     # NE PAS SUPPRIMER cette variable, meme si aucun analyseur ne la voit
@@ -184,9 +204,18 @@ def run():
     player = _StopTrigger(reader)  # noqa: F841
     monitor = xbmc.Monitor()
     elapsed_since_refresh = 0
+    elapsed_since_announce = 0
 
     while not monitor.waitForAbort(POLL_INTERVAL):
         _poll_and_report(reader)
+
+        elapsed_since_announce += POLL_INTERVAL
+        if elapsed_since_announce >= ANNOUNCE_INTERVAL:
+            elapsed_since_announce = 0
+            try:
+                _announce_device()
+            except Exception:
+                xbmc.log('[alldebridmc] service: erreur pendant _announce_device()', xbmc.LOGERROR)
 
         interval_seconds = _refresh_interval_seconds()
         if interval_seconds:

@@ -101,8 +101,19 @@ def _post(path, data=None):
         raise ApiError(str(exc)) from exc
 
 
-def ping():
-    return _get('/api/kodi/ping')
+def ping(device=None, addon_version=None, kodi_version=None):
+    """Sert a la fois de test de connexion et d'annonce de l'appareil : le
+    serveur retient nom/versions pour les afficher sur sa page Reglages
+    (voir record_device dans kodi_api.py). Tous les parametres sont
+    optionnels - sans eux, c'est un ping simple, exactement comme avant."""
+    params = {
+        k: v for k, v in (
+            ('device', device),
+            ('addon_version', addon_version),
+            ('kodi_version', kodi_version),
+        ) if v
+    }
+    return _get('/api/kodi/ping', params or None)
 
 
 BROWSE_TIMEOUT = 25  # secondes - le disque du MediaCenter peut avoir besoin de se
