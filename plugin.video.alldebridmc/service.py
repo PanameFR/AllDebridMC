@@ -207,7 +207,18 @@ def run():
     elapsed_since_announce = 0
 
     while not monitor.waitForAbort(POLL_INTERVAL):
-        _poll_and_report(reader)
+        try:
+            _poll_and_report(reader)
+        except Exception:
+            # Filet de securite final : _poll_and_report a deja ses propres
+            # try/except internes, mais une exception imprevue AVANT eux
+            # (ex: watch_progress.enabled()/device_name(), qui ne rattrapent
+            # que AttributeError/TypeError) tuerait sinon ce service en
+            # silence pour le reste de la session Kodi - deja arrive une
+            # fois par le passe avec une autre cause (voir docstring de
+            # _poll_and_report). Meme filet que _announce_device()/
+            # _maybe_auto_refresh() juste en dessous, qui l'avaient deja.
+            xbmc.log('[alldebridmc] service: erreur pendant _poll_and_report()', xbmc.LOGERROR)
 
         elapsed_since_announce += POLL_INTERVAL
         if elapsed_since_announce >= ANNOUNCE_INTERVAL:

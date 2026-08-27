@@ -206,17 +206,27 @@ class VStreamDbReader(object):
             for addon_id, point, total, title, hoster in cur.fetchall():
                 self.last_resume_id = max(self.last_resume_id, addon_id)
                 changed = True
-                params = _parse_encoded_params(hoster)
-                tmdb_id = params.get('idTMDB')
-                if not (tmdb_id and tmdb_id.isdigit()):
-                    continue
-                season, episode = _season_episode_from_params(params)
-                smedia = params.get('sMedia')
+                # Toute la ligne dans un seul try/except large (pas juste
+                # l'append) : une ligne isolee mal formee (hoster imprevu,
+                # colonne inattendue...) ne doit jamais bloquer le CURSEUR
+                # sur cette meme ligne pour toujours - self.last_resume_id
+                # est deja avance juste au-dessus, donc la sauter ici la
+                # sort definitivement du prochain sondage, plutot que de
+                # la re-rencontrer et planter poll() en boucle a chaque
+                # fois tant que cette ligne reste au-dela du curseur
+                # persiste (deja arrive : un service qui ne progresse plus
+                # jamais, meme apres un redemarrage de Kodi).
                 try:
+                    params = _parse_encoded_params(hoster)
+                    tmdb_id = params.get('idTMDB')
+                    if not (tmdb_id and tmdb_id.isdigit()):
+                        continue
+                    season, episode = _season_episode_from_params(params)
+                    smedia = params.get('sMedia')
                     results.append(
                         (int(tmdb_id), float(point), float(total), title or None, season, episode, smedia)
                     )
-                except (TypeError, ValueError):
+                except Exception:
                     pass
 
             cur.execute(
@@ -226,10 +236,18 @@ class VStreamDbReader(object):
             for addon_id, tmdb_id, siteurl in cur.fetchall():
                 self.last_watched_id = max(self.last_watched_id, addon_id)
                 changed = True
-                if tmdb_id and str(tmdb_id).isdigit():
-                    watched_params = _parse_encoded_params(siteurl)
-                    season, episode = _season_episode_from_params(watched_params)
-                    results.append((int(tmdb_id), 100.0, 100.0, None, season, episode, watched_params.get('sMedia')))
+                # Meme raison que la boucle resume juste au-dessus : une
+                # ligne mal formee ne doit jamais rester bloquee derriere
+                # le curseur pour toujours.
+                try:
+                    if tmdb_id and str(tmdb_id).isdigit():
+                        watched_params = _parse_encoded_params(siteurl)
+                        season, episode = _season_episode_from_params(watched_params)
+                        results.append(
+                            (int(tmdb_id), 100.0, 100.0, None, season, episode, watched_params.get('sMedia'))
+                        )
+                except Exception:
+                    pass
         except sqlite3.Error:
             pass
         finally:
