@@ -53,7 +53,18 @@ _CONFIG_EXTRA_DIRS = ['keymaps', 'peripheral_data', 'library']
 # Denied sur un fichier verrouille par Windows au mauvais moment) et de
 # toute facon inutile : pour restaurer une sauvegarde il faut deja avoir
 # installe cet addon depuis le depot, jamais l'inverse.
-_ADDONS_EXCLUDE = ['packages', 'temp', ADDON_ID]
+#
+# inputstream.adaptive et vfs.sftp exclus pour une raison differente et
+# specifique a un appareil (Mac mini M1, macOS 26.6.1, ete 2026) : un bug
+# de Kodi (CAddonInfoBuilder::ParseXML) rejette leur addon.xml officiel tel
+# quel ("doesn't contain library"), corrige a la main sur cet appareil en
+# reformattant la balise <extension> concernee sur une seule ligne. Une
+# sauvegarde/restauration via ce mecanisme generique ecraserait ce
+# correctif manuel par la version officielle (re-cassee) au prochain
+# restore, ou figerait un etat obsolete si le bug est corrige un jour cote
+# Kodi - dans les deux cas, mieux vaut ne jamais y toucher ici et le gerer
+# a la main au moment voulu plutot que de risquer une regression silencieuse.
+_ADDONS_EXCLUDE = ['packages', 'temp', ADDON_ID, 'inputstream.adaptive', 'vfs.sftp']
 _META_MEMBERS = ('kodi_settings.json', 'backup_meta.json')
 
 # Composants binaires compiles (n'importe quel addon, pas seulement le
