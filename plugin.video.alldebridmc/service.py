@@ -167,14 +167,27 @@ class _StopTrigger(xbmc.Player):
         _poll_and_report(self.reader)
 
 
-ANNOUNCE_INTERVAL = 6 * 3600  # secondes entre deux annonces au serveur
+ANNOUNCE_INTERVAL = 10 * 60  # secondes entre deux annonces au serveur
 
 
 def _announce_device():
     """Fait connaitre cet appareil au serveur (nom configure + versions),
     qui les affiche sur sa page Reglages - voir kodi_api.record_device cote
     serveur. Purement informatif : un echec (serveur eteint, reseau coupe)
-    est sans consequence, on reessaiera a la prochaine echeance."""
+    est sans consequence, on reessaiera a la prochaine echeance.
+
+    Sert aussi de ping de presence leger et frequent (10 min, plutot que les
+    6h d'origine) : sans lui, l'addon peut rester des heures sans le moindre
+    appel reseau vers le serveur (toute la duree d'une lecture vStream, par
+    exemple - _poll_and_report() n'appelle le serveur que s'il y a une
+    NOUVELLE position a signaler, jamais en continu), le temps qu'une table
+    de connexion (routeur/NAT) ou une mise en veille reseau expire faute
+    d'activite - premiere requete suivante alors en echec ("impossible de
+    joindre le serveur"), constate reellement sur KodiMiniPC apres de
+    longues periodes d'inactivite. Ce ping n'affiche jamais rien (meme
+    raison que le reste de ce module : jamais de notification/chargement
+    hors d'une action explicite de l'utilisateur), un echec est ignore
+    exactement comme avant."""
     from resources.lib import api_client, navigation
     try:
         api_client.ping(**navigation.device_identity())
