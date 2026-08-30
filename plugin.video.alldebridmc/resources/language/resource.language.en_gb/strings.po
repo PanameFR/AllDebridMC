@@ -326,3 +326,7 @@ msgstr ""
 msgctxt "#30349"
 msgid "Also applies to vStream/Pastebin content (integrated with UpNext). To avoid a duplicate popup, disable (without uninstalling) the service.upnext addon in that case - uninstalling it entirely would make vStream stop offering chaining at all."
 msgstr ""
+
+msgctxt "#30350"
+msgid "\"{0}\" removed"
+msgstr ""

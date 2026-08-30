@@ -282,6 +282,7 @@ def dispatch(base_url, handle, params):
 
 def _action_clear(params):
     source = params.get('source', 'local')
+    title = params.get('title', '')
     try:
         if source == 'vstream':
             tmdb_id = params.get('tmdb_id', '')
@@ -302,6 +303,15 @@ def _action_clear(params):
             ADDON_NAME, ADDON.getLocalizedString(30012), xbmcgui.NOTIFICATION_ERROR, 5000,
         )
         return
+    # Confirmation explicite du succes (jamais affichee avant) : voir
+    # docstring de _add_remove_context_item pour le pourquoi - le seul
+    # retour visuel fiable tant qu'un widget d'accueil ne se rafraichit pas
+    # forcement tout de suite.
+    xbmcgui.Dialog().notification(
+        ADDON_NAME,
+        ADDON.getLocalizedString(30350).format(title) if title else ADDON.getLocalizedString(30256),
+        xbmcgui.NOTIFICATION_INFO, 3000,
+    )
     xbmc.executebuiltin('Container.Refresh')
 
 
@@ -553,18 +563,28 @@ def _render_show_episodes(base_url, handle, params):
 
 
 def _add_remove_context_item(list_item, base_url, entry, watch_progress_info):
+    # Titre transmis en parametre d'URL (pas relu depuis le serveur au
+    # moment du clic) : sert uniquement a personnaliser la notification de
+    # succes dans _action_clear() - un widget d'accueil (Arctic Horizon 2,
+    # voir sa discussion) ne se rafraichit pas forcement tout de suite,
+    # cette notification reste alors la seule confirmation visible que le
+    # retrait a bien fonctionne cote serveur.
+    poster = entry.get('poster') or {}
+    title = poster.get('title') or entry.get('name') or ''
     if watch_progress_info.get('source') == 'vstream':
-        poster = entry.get('poster') or {}
         tmdb_id = poster.get('tmdb_id')
         season, episode = poster.get('season'), poster.get('episode')
         if season is not None and episode is not None:
             url = navigation.build_watch_action_url(
-                base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id, season=season, episode=episode,
+                base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id,
+                season=season, episode=episode, title=title,
             )
         else:
-            url = navigation.build_watch_action_url(base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id)
+            url = navigation.build_watch_action_url(
+                base_url, 'watch_clear', source='vstream', tmdb_id=tmdb_id, title=title,
+            )
     else:
-        url = navigation.build_watch_action_url(base_url, 'watch_clear', path=entry.get('path'))
+        url = navigation.build_watch_action_url(base_url, 'watch_clear', path=entry.get('path'), title=title)
     list_item.addContextMenuItems([
         (ADDON.getLocalizedString(30256), 'RunPlugin({0})'.format(url)),
         navigation.build_refresh_context_item(base_url),
