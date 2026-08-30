@@ -502,9 +502,19 @@ def _entry_art(entry):
     if ep and ep.get('still_url'):
         return {'thumb': ep['still_url'], 'icon': ep['still_url']}
 
-    season = entry.get('season_info')
-    if season and season.get('poster_url'):
-        return {'thumb': season['poster_url'], 'poster': season['poster_url']}
+    if entry.get('is_season_folder'):
+        # Jamais d'affiche par saison (meme si le serveur en fournit une,
+        # via season_info.poster_url ou poster.poster_url - identiques) :
+        # verifie contre le code source reel de l'integration Pastebin/
+        # vStream de reference (resources/sites/pastebin.py::addSeason,
+        # sThumbnail toujours vide, icone generique "no-image.png") avant
+        # d'ecrire ceci, jamais devine. Les affiches de saison TMDB varient
+        # trop d'un design/langue a l'autre pour la meme serie (constate
+        # directement sur "Super Noel, la serie" : Saison 1 et 2 ont deux
+        # visuels completement differents) - une tuile neutre uniforme
+        # rend l'identite "meme serie, saison differente" plus claire
+        # qu'une jaquette a chaque fois differente.
+        return {}
 
     poster = entry.get('poster')
     if poster and poster.get('poster_url'):
