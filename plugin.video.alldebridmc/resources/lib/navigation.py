@@ -447,15 +447,19 @@ def _guess_content(entries):
     if any(e.get('episode_info') for e in entries):
         return 'episodes'
     if any(e.get('season_info') for e in entries):
-        # 'seasons' n'est pas un type de contenu officiellement reconnu par
-        # Kodi (contrairement à movies/tvshows/episodes) — le skin Estuary
-        # n'affichait alors pas le résumé des saisons dans le panneau
-        # d'info, même si la donnée était bien présente sur le ListItem
-        # (confirmé en direct : setPlot()/getPlot() concordaient déjà).
-        # 'tvshows' déclenche le même panneau d'info que pour les séries,
-        # avec résumé, et convient tout aussi bien visuellement à une
-        # liste de saisons (affiches + titre + résumé).
-        return 'tvshows'
+        # 'seasons' est le type de contenu que vStream utilise reellement
+        # pour ce meme ecran (verifie contre son code source reel,
+        # resources/lib/gui/gui.py::addSeason -> setContent(handle,
+        # 'seasons') - jamais devine). Un essai passe sur Estuary (skin par
+        # defaut de Kodi) avait montre que ce type n'y affichait pas le
+        # resume de saison dans le panneau d'info, d'ou un repli vers
+        # 'tvshows' - mais ce test visait Estuary, pas Arctic Horizon 2 (le
+        # skin reellement utilise), qui traite 'seasons' specialement (le
+        # double panneau saisons/apercu-episodes vu sur vStream vient de la
+        # meme prise en charge cote skin, jamais du code de vStream
+        # lui-meme). A revenir a 'tvshows' si ce constat ne se confirme pas
+        # ici non plus.
+        return 'seasons'
     if any((e.get('poster') or {}).get('media_type') == 'tv' for e in entries):
         return 'tvshows'
     if any((e.get('poster') or {}).get('media_type') == 'movie' for e in entries):
