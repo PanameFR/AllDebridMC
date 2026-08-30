@@ -463,6 +463,21 @@ def _guess_content(entries):
     return 'files'
 
 
+def _guess_search_content(results):
+    """Meme intention que _guess_content ci-dessus, mais pour les resultats
+    de recherche locale (forme differente : media_type au premier niveau,
+    jamais season_info/episode_info). Necessaire pour la meme raison :
+    sans un vrai type 'movies'/'tvshows', le skin affiche une simple liste/
+    vignette generique au lieu du mur d'affiches (format vStream) - constate
+    directement (setContent('videos') rendait des tuiles plates avec juste
+    une barre de titre, pas des affiches hautes)."""
+    if any(r.get('media_type') == 'movie' for r in results):
+        return 'movies'
+    if any(r.get('media_type') == 'tv' for r in results):
+        return 'tvshows'
+    return 'files'
+
+
 def _entry_title(entry):
     ep = entry.get('episode_info')
     if ep and ep.get('name'):
@@ -649,11 +664,10 @@ def _render_local_search(base_url, handle, query):
     lecture separee, la suite (reprise, enchainement UpNext...) se
     comporte alors normalement des qu'on rebrowse/joue depuis la, comme
     n'importe quel autre chemin d'acces a ce meme contenu."""
-    xbmcplugin.setContent(handle, 'videos')
-
     if not query:
         # Filet de securite (URL malformee/directe) : le prompt normal
         # (_run_local_search_prompt) ne navigue jamais ici sans texte saisi.
+        xbmcplugin.setContent(handle, 'files')
         xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30338))
         _notify(ADDON.getLocalizedString(30340))
         xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
@@ -667,6 +681,12 @@ def _render_local_search(base_url, handle, query):
         handle_api_error(exc)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
         return
+
+    # Determine apres coup (comme _guess_content pour la navigation normale) :
+    # un vrai type 'movies'/'tvshows' (jamais 'videos', trop generique) est
+    # ce qui declenche le mur d'affiches hautes du skin plutot qu'une simple
+    # liste/vignette avec barre de titre.
+    xbmcplugin.setContent(handle, _guess_search_content(results))
 
     items = [_build_search_list_item(base_url, entry) for entry in results]
     xbmcplugin.addDirectoryItems(handle, items, len(items))
