@@ -33,12 +33,26 @@ def is_installed():
         return False
 
 
+def _episode_id(info):
+    """Identifiant distinct entre l'episode en cours et le suivant, derive de
+    saison/episode - pas de vrai ID Kodi possible (contenu hors videotheque,
+    servi par un plugin). Un 0 fixe pour les deux (valeur utilisee par
+    l'integration vStream dans ce meme cas) fait croire a tort a UpNext que
+    l'episode suivant EST l'episode en cours (self.state.current_episode_id
+    == episode_id dans playbackmanager.py::launch_popup), qui alors renonce
+    silencieusement a jouer la suite - aucun log d'erreur, aucune exception,
+    juste rien qui se passe. Constate reellement : "Up Next style autoplay
+    succeeded" logue (l'appel n'a pas leve d'exception) sans le moindre
+    Player.Open ensuite, sur Super Noel comme sur toute autre serie locale."""
+    try:
+        return int(info.get('season') or 0) * 1000 + int(info.get('episode') or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _episode_payload(info):
     return {
-        # Pas de vraie ligne dans la videotheque Kodi (contenu servi par un
-        # plugin) - 0 est la valeur utilisee par l'integration vStream
-        # (verifiee fonctionnelle) dans ce meme cas.
-        'episodeid': 0, 'tvshowid': 0,
+        'episodeid': _episode_id(info), 'tvshowid': 0,
         'showtitle': info.get('showtitle', ''),
         'season': str(info.get('season', '')),
         'episode': str(info.get('episode', '')),
