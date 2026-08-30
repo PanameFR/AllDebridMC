@@ -909,24 +909,28 @@ def test_connection(handle):
 # ---- action "Rafraichir" (menu racine + menu contextuel Mes Listes/En cours) --
 
 def run_refresh_action(handle):
-    """Container.Refresh ne rafraichit que le conteneur ACTIF au moment de
-    l'appel - insuffisant sur l'ecran d'accueil, ou les widgets ne sont pas
-    forcement le conteneur qui a le focus (meme probleme, et meme solution,
-    que _maybe_auto_refresh dans service.py : ReloadSkin() y recharge tout,
-    widgets compris, de facon fiable quel que soit le skin). Meme detection
-    ici, pour qu'un declenchement MANUEL (raccourci de skin, menu racine,
-    menu contextuel Mes Listes/En cours) soit fiable partout, y compris
-    depuis l'accueil - pas seulement le declenchement automatique.
+    """TOUJOURS ReloadSkin(), jamais Container.Refresh ici - meme raison que
+    _maybe_auto_refresh dans service.py (recharge tout, widgets compris, de
+    facon fiable quel que soit le skin), mais SANS la condition
+    Window.IsActive(home) que ce module utilisait avant : ce declenchement
+    est justement atteint depuis le menu racine de l'addon ou l'ecran "En
+    cours" lui-meme, jamais depuis l'accueil directement - la condition
+    etait donc TOUJOURS fausse au moment de l'appel, ce qui prenait a tort
+    la branche Container.Refresh (qui ne rafraichit que CET ecran, jamais
+    le widget reste en arriere-plan sur l'accueil) - constate reellement :
+    un clic sur "Rafraichir" ici ne mettait jamais a jour le widget
+    d'accueil, seul un redemarrage complet de Kodi le faisait. Un flash de
+    rechargement de skin est un effet de bord acceptable ici (declenchement
+    EXPLICITE par un clic volontaire) - contrairement au rafraichissement
+    AUTOMATIQUE de service.py, qui lui doit rester invisible et ne jamais
+    surprendre un utilisateur qui n'a rien demande.
 
     Notre contenu n'est deja jamais mis en cache (cacheToDisc=False
     partout) - le seul interet ici est de forcer Kodi a re-executer la
     requete tout de suite, sans attendre un eventuel rafraichissement
     automatique de widget de skin.
     """
-    if xbmc.getCondVisibility('Window.IsActive(home)'):
-        xbmc.executebuiltin('ReloadSkin()')
-    else:
-        xbmc.executebuiltin('Container.Refresh')
+    xbmc.executebuiltin('ReloadSkin()')
     _notify(ADDON.getLocalizedString(30317), error=False)
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
