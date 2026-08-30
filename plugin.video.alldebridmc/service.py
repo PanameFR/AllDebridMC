@@ -59,18 +59,33 @@ boucle), une restauration Kodi laissee en attente par kodi_backup.py -
 voir kodi_backup.apply_pending_settings_restore pour le detail de pourquoi
 les parametres JSON-RPC d'une restauration ne sont jamais appliques
 pendant la restauration elle-meme, seulement au prochain redemarrage.
+
+Ecoute aussi (_UpNextBridge) les notifications JSON-RPC 'upnext_data' que
+N'IMPORTE QUEL addon integre a service.upnext diffuse - vStream compris,
+verifie contre son propre code source (Kodi-vStream/venom-xbmc-addons,
+resources/lib/upnext.py::notifyUpnext(), branche Beta) qui envoie
+exactement ce protocole (NotifyAll, message upnext_data, JSON encode
+base64, play_url deja resolu par vStream lui-meme) - le meme que notre
+propre resources/lib/upnext.py::notify() de secours. Comme pour la
+bibliotheque locale (voir resources/lib/next_up.py), service.upnext ne
+bascule vers la suite qu'a moins d'1 seconde de la fin reelle
+(playbackmanager.py::show_popup_and_wait) - une course perdue plus souvent
+que gagnee. Voir next_up.py pour le detail du minuteur/popup reutilise ici
+tel quel pour ces sources externes.
 """
 import xbmc
 import xbmcaddon
 import xbmcgui
 
-from resources.lib import kodi_backup, vstream_db, watch_progress
+from resources.lib import kodi_backup, next_up, vstream_db, watch_progress
 
 POLL_INTERVAL = 30  # secondes entre deux sondages periodiques de secours
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
+ADDON_ID = ADDON.getAddonInfo('id')
 _BASE_URL = 'plugin://plugin.video.alldebridmc/'
+_UPNEXT_ADDON_ID = 'service.upnext'
 _LISTS_ACTIONS = ('action=lists_home', 'action=lists_show')
 _WATCH_PROGRESS_ACTIONS = ('action=watch_in_progress', 'action=watch_history')
 
@@ -167,6 +182,63 @@ class _StopTrigger(xbmc.Player):
         _poll_and_report(self.reader)
 
 
+_upnext_conflict_warned = [False]  # liste (pas bool) pour rester mutable depuis la methode
+
+
+class _UpNextBridge(xbmc.Monitor):
+    """Capte les notifications 'upnext_data' d'une source EXTERNE (vStream
+    compris) et leur applique notre propre minuteur fiable (next_up.py) au
+    lieu de laisser service.upnext s'en charger - voir docstring de tete de
+    module pour le diagnostic complet.
+
+    Ignore ses PROPRES notifications (sender = notre addon) : celles-ci ne
+    viennent que du repli next_up.enabled()==False de navigation.py::
+    play_item() (l'utilisateur a explicitement choisi de laisser
+    service.upnext gerer la bibliotheque locale) - jamais interceptees ici,
+    sous peine de contredire ce choix.
+
+    Avertit UNE fois par session (log, jamais de popup pour ne pas gener)
+    si service.upnext est installe ET ACTIF en meme temps : il traiterait
+    alors lui aussi cette meme notification en parallele, deux popups en
+    concurrence. Rester installe mais DESACTIVE reste volontairement
+    possible et recommande (voir aide du reglage own_chaining_enabled) :
+    xbmcaddon.Addon(id) (utilise par vStream lui-meme dans son propre
+    use_up_next() pour decider s'il envoie quoi que ce soit) reussit meme
+    si l'addon est desactive, seulement pas s'il est desinstalle - un
+    desinstall complet ferait perdre a vStream toute notion de UpNext et
+    declencherait sa propre invite d'installation, avec un refus qui
+    desactiverait DEFINITIVEMENT son propre envoi de notification (son
+    reglage interne upnext=false, jamais reinitialise automatiquement)."""
+
+    def onNotification(self, sender, method, data):
+        if not method.endswith('upnext_data'):
+            return
+        if sender == '%s.SIGNAL' % ADDON_ID:
+            return
+        if not next_up.enabled():
+            return
+
+        try:
+            next_info = next_up.parse_external_notification(data)
+        except Exception:
+            xbmc.log('[alldebridmc] service: notification upnext_data illisible', xbmc.LOGERROR)
+            return
+        if not next_info:
+            return
+
+        if not _upnext_conflict_warned[0] and xbmc.getCondVisibility(
+                'System.AddonIsEnabled(%s)' % _UPNEXT_ADDON_ID):
+            _upnext_conflict_warned[0] = True
+            xbmc.log(
+                '[alldebridmc] service: service.upnext est actif en meme temps que notre '
+                'propre enchainement (sender=%s) - risque de double popup, desactiver '
+                'service.upnext est recommande (reglages > Enchainement des episodes).' % sender,
+                xbmc.LOGWARNING,
+            )
+
+        next_up.start_chaining_monitor(next_info)
+
+
 ANNOUNCE_INTERVAL = 10 * 60  # secondes entre deux annonces au serveur
 
 
@@ -215,6 +287,10 @@ def run():
     # visible. Sa portee (locale a run(), qui tourne toute la session)
     # suffit a le maintenir en vie.
     player = _StopTrigger(reader)  # noqa: F841
+    # Meme raison que player juste au-dessus : garde une reference vivante,
+    # sans laquelle onNotification() cesserait silencieusement d'etre
+    # appelee des que le GC recupere l'objet.
+    upnext_bridge = _UpNextBridge()  # noqa: F841
     monitor = xbmc.Monitor()
     elapsed_since_refresh = 0
     elapsed_since_announce = 0

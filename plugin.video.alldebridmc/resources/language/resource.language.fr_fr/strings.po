@@ -300,8 +300,8 @@ msgid "Episode chaining"
 msgstr "Enchaînement des épisodes"
 
 msgctxt "#30343"
-msgid "Auto-chain episodes (local library)"
-msgstr "Enchaîner automatiquement les épisodes (bibliothèque locale)"
+msgid "Auto-chain episodes (local library + vStream)"
+msgstr "Enchaîner automatiquement les épisodes (bibliothèque locale + vStream)"
 
 msgctxt "#30344"
 msgid "Show prompt this many seconds before the end"
@@ -322,3 +322,7 @@ msgstr "Annuler"
 msgctxt "#30348"
 msgid "Next episode in {0}s"
 msgstr "Prochain épisode dans {0}s"
+
+msgctxt "#30349"
+msgid "Also applies to vStream/Pastebin content (integrated with UpNext). To avoid a duplicate popup, disable (without uninstalling) the service.upnext addon in that case - uninstalling it entirely would make vStream stop offering chaining at all."
+msgstr "S'applique aussi aux contenus vStream/Pastebin (intégrés à UpNext). Pour éviter un double popup, désactive (sans le désinstaller) l'addon service.upnext dans ce cas - le désinstaller complètement ferait que vStream cesserait totalement de proposer l'enchaînement."

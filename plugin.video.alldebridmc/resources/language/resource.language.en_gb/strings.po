@@ -300,7 +300,7 @@ msgid "Episode chaining"
 msgstr ""
 
 msgctxt "#30343"
-msgid "Auto-chain episodes (local library)"
+msgid "Auto-chain episodes (local library + vStream)"
 msgstr ""
 
 msgctxt "#30344"
@@ -321,4 +321,8 @@ msgstr ""
 
 msgctxt "#30348"
 msgid "Next episode in {0}s"
+msgstr ""
+
+msgctxt "#30349"
+msgid "Also applies to vStream/Pastebin content (integrated with UpNext). To avoid a duplicate popup, disable (without uninstalling) the service.upnext addon in that case - uninstalling it entirely would make vStream stop offering chaining at all."
 msgstr ""

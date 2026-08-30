@@ -120,7 +120,7 @@
         </category>
         <category id="chaining" label="30342" help="">
             <group id="1">
-                <setting id="own_chaining_enabled" type="boolean" label="30343" help="">
+                <setting id="own_chaining_enabled" type="boolean" label="30343" help="30349">
                     <level>0</level>
                     <default>true</default>
                     <control type="toggle"/>

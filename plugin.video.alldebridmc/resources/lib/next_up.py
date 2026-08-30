@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 """Enchainement fiable des episodes de la bibliotheque locale, en
-remplacement de service.upnext pour ce cas precis (voir upnext.py pour
-l'integration vStream/Pastebin, qui reste inchangee - vStream lance sa
-propre lecture par son propre code, jamais via le notre, donc ce module
-ne le concerne jamais, ni le service.upnext installe qui continue de
-fonctionner normalement pour vStream).
+remplacement de service.upnext pour ce cas precis, ET (voir
+parse_external_notification plus bas) pour toute source EXTERNE
+integree a UpNext qui diffuse le protocole standard NotifyAll/
+upnext_data - vStream compris, verifie contre son propre code source
+(resources/lib/upnext.py::notifyUpnext() sur Kodi-vStream/venom-xbmc-addons,
+branche Beta) qui envoie exactement ce protocole avec un play_url deja
+resolu. Le pont d'ecoute cote service (resources/lib service.py::
+_UpNextBridge) reste separe de ce module ; ce fichier ne fait que fournir
+la traduction payload -> next_info et le minuteur/popup, communs aux deux
+cas.
 
 Diagnostic (code source reel de service.upnext lu sur un appareil
 installe, resources/lib/playbackmanager.py::show_popup_and_wait) :
@@ -13,7 +18,10 @@ moins avant de basculer vers l'episode suivant - une vraie course contre
 la fin naturelle du fichier, perdue plus souvent que gagnee sur nos
 fichiers locaux (lecture SMB directe, quasi aucune mise en tampon,
 contrairement aux sources en streaming HTTP de vStream qui ont
-naturellement de la marge grace a leur tampon de lecture).
+naturellement de la marge grace a leur tampon de lecture). Le meme risque
+existe en theorie pour n'importe quelle autre source utilisant ce
+protocole, d'ou l'interet d'etendre ce mecanisme au-dela de la
+bibliotheque locale plutot que de le garder isole.
 
 Ce module recree un popup "Episode suivant" du meme type (compte a
 rebours, boutons Lire maintenant/Annuler) - jamais copie tel quel
@@ -25,8 +33,11 @@ quand le popup apparait et combien de temps son compte a rebours dure -
 le changement de fichier reel se produit donc toujours avec au moins
 quelques secondes d'avance sur la fin reelle.
 """
+import base64
 import json
 import threading
+from binascii import Error as _BinasciiError
+from binascii import unhexlify
 
 import xbmc
 import xbmcaddon
@@ -125,6 +136,57 @@ def _autoplay_countdown():
     except (AttributeError, TypeError):
         value = 0
     return value if value else 20
+
+
+def _decode_notification_payload(encoded):
+    """Meme format que celui lu par service.upnext lui-meme (verifie contre
+    son propre resources/lib/utils.py::decode_data sur im85288/service.upnext) :
+    hex ou base64, jamais devine - essaie hex d'abord (comme lui) puis
+    retombe sur base64. vStream et notre propre notify() de secours
+    encodent toujours en base64, mais un autre addon integre a UpNext
+    pourrait utiliser l'un ou l'autre selon ce meme contrat public."""
+    try:
+        json_data = unhexlify(encoded)
+    except (TypeError, _BinasciiError):
+        json_data = base64.b64decode(encoded)
+    return json.loads(json_data.decode('utf-8'))
+
+
+def parse_external_notification(data):
+    """Traduit une notification JSON-RPC 'upnext_data' recue de N'IMPORTE
+    QUEL addon integre a UpNext (vStream verifie reellement : son propre
+    resources/lib/upnext.py::notifyUpnext() envoie exactement ce protocole,
+    play_url deja resolu compris) vers le meme dict plat que consomme
+    start_chaining_monitor() pour la bibliotheque locale - aucune autre
+    difference de traitement ensuite entre une source externe et locale.
+    None si data est illisible ou ne contient pas d'episode suivant jouable
+    (fin de saison, pas de source resolue par l'addon appelant)."""
+    try:
+        encoded = json.loads(data)
+    except (TypeError, ValueError):
+        return None
+    if not encoded:
+        return None
+
+    try:
+        payload = _decode_notification_payload(encoded[0])
+    except Exception:
+        return None
+
+    play_url = payload.get('play_url')
+    if not play_url:
+        return None
+
+    next_episode = payload.get('next_episode') or {}
+    art = next_episode.get('art') or {}
+    return {
+        'showtitle': next_episode.get('showtitle', ''),
+        'season': next_episode.get('season', ''),
+        'episode': next_episode.get('episode', ''),
+        'title': next_episode.get('title', ''),
+        'thumb': art.get('thumb', ''),
+        'play_url': play_url,
+    }
 
 
 def _player_open(file_url):
