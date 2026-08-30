@@ -14,7 +14,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import api_client, kodi_backup, playback, upnext
+from resources.lib import api_client, kodi_backup, lists_dialogs, playback, upnext
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
@@ -58,6 +58,10 @@ def route(base_url, handle, params):
         _list_root_menu(base_url, handle)
     elif action == 'browse':
         list_directory(base_url, handle, params.get('path', ''))
+    elif action == 'local_search_prompt':
+        _run_local_search_prompt(base_url, handle)
+    elif action == 'local_search':
+        _render_local_search(base_url, handle, params.get('query', ''))
     elif action == 'play':
         play_item(base_url, handle, params)
     elif action == 'movie_info':
@@ -418,6 +422,11 @@ def list_directory(base_url, handle, path):
         build_list_item(base_url, entry, entries[i + 1] if i + 1 < len(entries) else None)
         for i, entry in enumerate(entries)
     ]
+    if not path:
+        # Uniquement a la racine de "Medias" (a cote d'Animations/Films/
+        # Series) - une recherche n'a de sens que sur toute la
+        # bibliotheque, jamais limitee a un sous-dossier deja filtre.
+        items.append(_build_local_search_menu_item(base_url))
     xbmcplugin.addDirectoryItems(handle, items, len(items))
     # Le serveur trie déjà correctement (SxxExx, alphabétique) : on garde
     # cet ordre plutôt que de proposer le tri natif de Kodi.
@@ -612,6 +621,85 @@ def build_list_item(base_url, entry, next_entry=None):
             if next_thumb:
                 play_params['next_thumb'] = next_thumb
     url = _build_url(base_url, **play_params)
+    return url, list_item, False
+
+
+def _build_local_search_menu_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30338), offscreen=True)
+    list_item.setArt({'icon': 'DefaultAddonsSearch.png'})
+    url = _build_url(base_url, action='local_search_prompt')
+    return url, list_item, False
+
+
+def _run_local_search_prompt(base_url, handle):
+    query = lists_dialogs.ask_text(ADDON.getLocalizedString(30339))
+    if query:
+        url = _build_url(base_url, action='local_search', query=query)
+        xbmc.executebuiltin('Container.Update({0})'.format(url))
+    xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+
+
+def _render_local_search(base_url, handle, query):
+    """Resultats de recherche dans la bibliotheque locale, par titre TMDB
+    deja resolu cote serveur (voir lists_store.search_local /
+    tmdb_poster_cache.json) - jamais par nom de fichier brut. Chaque
+    resultat pointe directement vers action=browse (dossier - typiquement
+    la racine d'une serie) ou action=play (fichier), exactement comme un
+    item de navigation normale (voir build_list_item) : aucune logique de
+    lecture separee, la suite (reprise, enchainement UpNext...) se
+    comporte alors normalement des qu'on rebrowse/joue depuis la, comme
+    n'importe quel autre chemin d'acces a ce meme contenu."""
+    xbmcplugin.setContent(handle, 'videos')
+
+    if not query:
+        # Filet de securite (URL malformee/directe) : le prompt normal
+        # (_run_local_search_prompt) ne navigue jamais ici sans texte saisi.
+        xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30338))
+        _notify(ADDON.getLocalizedString(30340))
+        xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
+        return
+
+    xbmcplugin.setPluginCategory(handle, ADDON.getLocalizedString(30341).format(query))
+
+    try:
+        results = api_client.search_local_catalog(query)
+    except api_client.ApiError as exc:
+        handle_api_error(exc)
+        xbmcplugin.endOfDirectory(handle, succeeded=False)
+        return
+
+    items = [_build_search_list_item(base_url, entry) for entry in results]
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(handle, succeeded=bool(results), cacheToDisc=False)
+
+
+def _build_search_list_item(base_url, entry):
+    title = entry.get('title') or '?'
+    if entry.get('year'):
+        title = '{0} ({1})'.format(title, entry['year'])
+
+    list_item = xbmcgui.ListItem(label=title, offscreen=True)
+    poster_url = entry.get('poster_url')
+    if poster_url:
+        list_item.setArt({'thumb': poster_url, 'poster': poster_url})
+
+    info = list_item.getVideoInfoTag()
+    info.setTitle(title)
+    info.setMediaType('movie' if entry.get('media_type') == 'movie' else 'tvshow')
+    if entry.get('year'):
+        try:
+            info.setYear(int(entry['year']))
+        except (TypeError, ValueError):
+            pass
+
+    path = entry.get('local_path') or ''
+    if entry.get('local_is_dir'):
+        url = _build_url(base_url, action='browse', path=path)
+        return url, list_item, True
+
+    list_item.setProperty('IsPlayable', 'true')
+    url = _build_url(base_url, action='play', path=path, title=title, thumb=poster_url or '')
     return url, list_item, False
 
 

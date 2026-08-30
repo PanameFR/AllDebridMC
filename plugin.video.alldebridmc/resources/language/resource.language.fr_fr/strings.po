@@ -278,3 +278,19 @@ msgstr "Animés"
 msgctxt "#30337"
 msgid "Other"
 msgstr "Autres"
+
+msgctxt "#30338"
+msgid "Search"
+msgstr "Rechercher"
+
+msgctxt "#30339"
+msgid "Search the local library (TMDB title)"
+msgstr "Rechercher dans la bibliothèque locale (titre TMDB)"
+
+msgctxt "#30340"
+msgid "No results."
+msgstr "Aucun résultat."
+
+msgctxt "#30341"
+msgid "Search: \"{0}\""
+msgstr "Recherche : « {0} »"

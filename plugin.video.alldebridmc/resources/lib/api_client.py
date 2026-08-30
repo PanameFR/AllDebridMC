@@ -188,6 +188,14 @@ def search_vstream_catalog(query, categories=None):
     return _get('/api/kodi/lists/search-vstream', params).get('results', [])
 
 
+def search_local_catalog(query):
+    """Recherche dans la bibliotheque locale du MediaCenter par titre TMDB
+    deja resolu (jamais par nom de fichier brut) - meme fonction serveur
+    (lists_store.search_local) que celle utilisee par la page web /lists
+    pour relier un item local a une liste."""
+    return _get('/api/kodi/lists/search-local', {'q': query}).get('results', [])
+
+
 # ---- reprise de lecture synchronisée (watch_progress.py sur le serveur) ---
 
 def get_watch_progress(path):
