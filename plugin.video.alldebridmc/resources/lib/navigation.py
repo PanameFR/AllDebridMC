@@ -909,28 +909,34 @@ def test_connection(handle):
 # ---- action "Rafraichir" (menu racine + menu contextuel Mes Listes/En cours) --
 
 def run_refresh_action(handle):
-    """TOUJOURS ReloadSkin(), jamais Container.Refresh ici - meme raison que
-    _maybe_auto_refresh dans service.py (recharge tout, widgets compris, de
-    facon fiable quel que soit le skin), mais SANS la condition
-    Window.IsActive(home) que ce module utilisait avant : ce declenchement
-    est justement atteint depuis le menu racine de l'addon ou l'ecran "En
-    cours" lui-meme, jamais depuis l'accueil directement - la condition
-    etait donc TOUJOURS fausse au moment de l'appel, ce qui prenait a tort
-    la branche Container.Refresh (qui ne rafraichit que CET ecran, jamais
-    le widget reste en arriere-plan sur l'accueil) - constate reellement :
-    un clic sur "Rafraichir" ici ne mettait jamais a jour le widget
-    d'accueil, seul un redemarrage complet de Kodi le faisait. Un flash de
-    rechargement de skin est un effet de bord acceptable ici (declenchement
-    EXPLICITE par un clic volontaire) - contrairement au rafraichissement
-    AUTOMATIQUE de service.py, qui lui doit rester invisible et ne jamais
-    surprendre un utilisateur qui n'a rien demande.
+    """Container.Refresh, jamais ReloadSkin() ici - marche arriere sur une
+    tentative precedente (v1.19.1, TOUJOURS ReloadSkin) suite a un
+    signalement reel sur un Mac Mini : ReloadSkin() natif de Kodi
+    (declenche par un raccourci d'accueil, hors de notre addon) a fait
+    planter Kodi entierement (segfault dans CApplicationSkinHandling::
+    ReloadSkin/UnloadSkin, pile d'appel confirmee via un vrai rapport de
+    crash macOS) - et notre propre appel (xbmc.executebuiltin depuis le
+    script Python, jamais reproduit le plantage celui-la) n'a lui NEUTRE
+    RIEN rafraichi du tout sur ce meme appareil. ReloadSkin() s'est donc
+    montre a la fois instable ET inefficace sur cette combinaison Kodi/
+    materiel - pas un mecanisme sur lequel on peut compter, dans un sens
+    comme dans l'autre.
+
+    Limite acceptee en echange (deja documentee avant la tentative
+    ReloadSkin, voir historique) : Container.Refresh ne rafraichit que le
+    conteneur ACTIF au moment de l'appel - un widget reste en arriere-plan
+    sur l'accueil ne sera jamais touche par ce bouton. Pour une donnee
+    fraiche garantie, visiter directement l'ecran "En cours" (toujours a
+    jour, verifie cote serveur) reste le recours fiable - le widget lui-
+    meme ne se mettra a jour que via le rafraichissement automatique
+    (jusqu'a lists_refresh_interval_minutes) ou un redemarrage de Kodi.
 
     Notre contenu n'est deja jamais mis en cache (cacheToDisc=False
     partout) - le seul interet ici est de forcer Kodi a re-executer la
     requete tout de suite, sans attendre un eventuel rafraichissement
     automatique de widget de skin.
     """
-    xbmc.executebuiltin('ReloadSkin()')
+    xbmc.executebuiltin('Container.Refresh')
     _notify(ADDON.getLocalizedString(30317), error=False)
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
