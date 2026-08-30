@@ -692,6 +692,12 @@ def _build_search_list_item(base_url, entry):
             info.setYear(int(entry['year']))
         except (TypeError, ValueError):
             pass
+    if entry.get('overview'):
+        info.setPlot(entry['overview'])
+    if entry.get('rating'):
+        info.setRating(float(entry['rating']))
+    if entry.get('runtime'):
+        info.setDuration(int(entry['runtime']) * 60)  # TMDB : minutes -> Kodi attend des secondes
 
     path = entry.get('local_path') or ''
     if entry.get('local_is_dir'):
