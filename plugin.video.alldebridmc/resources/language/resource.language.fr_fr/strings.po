@@ -294,3 +294,31 @@ msgstr "Aucun résultat."
 msgctxt "#30341"
 msgid "Search: \"{0}\""
 msgstr "Recherche : « {0} »"
+
+msgctxt "#30342"
+msgid "Episode chaining"
+msgstr "Enchaînement des épisodes"
+
+msgctxt "#30343"
+msgid "Auto-chain episodes (local library)"
+msgstr "Enchaîner automatiquement les épisodes (bibliothèque locale)"
+
+msgctxt "#30344"
+msgid "Show prompt this many seconds before the end"
+msgstr "Afficher la proposition avant la fin (secondes)"
+
+msgctxt "#30345"
+msgid "Auto-play next episode after this many seconds"
+msgstr "Lancer automatiquement après (secondes)"
+
+msgctxt "#30346"
+msgid "Watch now"
+msgstr "Lire maintenant"
+
+msgctxt "#30347"
+msgid "Cancel"
+msgstr "Annuler"
+
+msgctxt "#30348"
+msgid "Next episode in {0}s"
+msgstr "Prochain épisode dans {0}s"

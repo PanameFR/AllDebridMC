@@ -294,3 +294,31 @@ msgstr ""
 msgctxt "#30341"
 msgid "Search: \"{0}\""
 msgstr ""
+
+msgctxt "#30342"
+msgid "Episode chaining"
+msgstr ""
+
+msgctxt "#30343"
+msgid "Auto-chain episodes (local library)"
+msgstr ""
+
+msgctxt "#30344"
+msgid "Show prompt this many seconds before the end"
+msgstr ""
+
+msgctxt "#30345"
+msgid "Auto-play next episode after this many seconds"
+msgstr ""
+
+msgctxt "#30346"
+msgid "Watch now"
+msgstr ""
+
+msgctxt "#30347"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#30348"
+msgid "Next episode in {0}s"
+msgstr ""

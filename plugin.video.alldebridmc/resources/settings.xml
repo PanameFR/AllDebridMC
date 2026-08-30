@@ -118,6 +118,35 @@
                 </setting>
             </group>
         </category>
+        <category id="chaining" label="30342" help="">
+            <group id="1">
+                <setting id="own_chaining_enabled" type="boolean" label="30343" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
+                <setting id="chaining_notify_before_end" type="integer" label="30344" help="">
+                    <level>0</level>
+                    <default>30</default>
+                    <constraints>
+                        <minimum>5</minimum>
+                        <maximum>120</maximum>
+                        <step>5</step>
+                    </constraints>
+                    <control type="spinner" format="integer"/>
+                </setting>
+                <setting id="chaining_autoplay_countdown" type="integer" label="30345" help="">
+                    <level>0</level>
+                    <default>20</default>
+                    <constraints>
+                        <minimum>5</minimum>
+                        <maximum>60</maximum>
+                        <step>5</step>
+                    </constraints>
+                    <control type="spinner" format="integer"/>
+                </setting>
+            </group>
+        </category>
         <category id="lists" label="30100" help="">
             <group id="1">
                 <setting id="lists_tmdb_api_key" type="string" label="30101" help="">

@@ -14,7 +14,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from resources.lib import api_client, kodi_backup, lists_dialogs, playback, upnext
+from resources.lib import api_client, kodi_backup, lists_dialogs, next_up, playback, upnext
 
 ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
@@ -781,12 +781,45 @@ def play_item(base_url, handle, params):
     list_item.setPath(playback.build_smb_url(relative_path))
     xbmcplugin.setResolvedUrl(handle, True, list_item)
 
-    _notify_upnext(base_url, params)
+    # Enchainement fiable (notre propre popup, voir next_up.py) si active
+    # et qu'un episode suivant est connu - sinon (dernier episode d'une
+    # saison, film, ou fonctionnalite desactivee dans les reglages) filet
+    # de secours vers service.upnext comme avant. Jamais les deux a la
+    # fois (double popup).
+    if params.get('next_path') and next_up.enabled():
+        next_up.start_chaining_monitor(_build_next_episode_info(base_url, params))
+    else:
+        _notify_upnext(base_url, params)
 
     # Bloque jusqu'a la fin de la lecture pour suivre la progression - le
     # script du plugin n'est pas oblige de revenir vite apres
     # setResolvedUrl (voir le commentaire en tete de watch_progress.py).
     watch_progress.track_playback(relative_path)
+
+
+def _build_next_episode_info(base_url, params):
+    """Meme construction que next_play_params dans _notify_upnext (juste
+    en dessous) - dupliquee volontairement plutot que partagee, les deux
+    consommateurs (service.upnext vs next_up.py) ont des besoins et des
+    formats de donnees differents (dict current+next vs un seul dict)."""
+    next_play_params = {
+        'action': 'play', 'path': params['next_path'],
+        'title': params.get('next_title', ''), 'thumb': params.get('next_thumb', ''),
+        'plot': params.get('next_plot', ''), 'showtitle': params.get('showtitle', ''),
+    }
+    if params.get('next_season'):
+        next_play_params['season'] = params['next_season']
+    if params.get('next_episode'):
+        next_play_params['episode'] = params['next_episode']
+
+    return {
+        'showtitle': params.get('showtitle', ''),
+        'season': params.get('next_season', ''),
+        'episode': params.get('next_episode', ''),
+        'title': params.get('next_title', ''),
+        'thumb': params.get('next_thumb', ''),
+        'play_url': _build_url(base_url, **next_play_params),
+    }
 
 
 def _notify_upnext(base_url, params):

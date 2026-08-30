@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+    <defaultcontrol always="true">501</defaultcontrol>
+    <onload>Dialog.Close(fullscreeninfo,true)</onload>
+    <onload>Dialog.Close(videoosd,true)</onload>
+    <controls>
+        <control type="group">
+            <animation type="WindowOpen" reversible="false">
+                <effect type="fade" start="0" end="100" time="400" />
+                <effect type="slide" start="0,-181" end="0,0" time="400" />
+            </animation>
+            <animation type="WindowClose" reversible="false">
+                <effect type="fade" start="100" end="0" time="400" />
+                <effect type="slide" start="0,0" end="0,-181" time="400" />
+            </animation>
+            <control type="group">
+                <height>181</height>
+                <!-- Fond -->
+                <control type="image">
+                    <top>0</top>
+                    <width>100%</width>
+                    <height>181</height>
+                    <texture colordiffuse="dd000000">white.png</texture>
+                </control>
+                <!-- Vignette -->
+                <control type="group">
+                    <top>20</top>
+                    <left>20</left>
+                    <control type="image">
+                        <width>250</width>
+                        <height>141</height>
+                        <texture colordiffuse="FF303030">white.png</texture>
+                        <visible>String.IsEmpty(Window.Property(alldebridmc_thumb))</visible>
+                    </control>
+                    <control type="image">
+                        <width>250</width>
+                        <height>141</height>
+                        <texture>$INFO[Window.Property(alldebridmc_thumb)]</texture>
+                        <aspectratio>scale</aspectratio>
+                        <visible>!String.IsEmpty(Window.Property(alldebridmc_thumb))</visible>
+                    </control>
+                    <control type="progress" id="503">
+                        <width>250</width>
+                        <top>136</top>
+                        <height>5</height>
+                        <reveal>true</reveal>
+                        <righttexture></righttexture>
+                        <overlaytexture></overlaytexture>
+                        <lefttexture></lefttexture>
+                        <texturebg colordiffuse="00ffffff">white.png</texturebg>
+                        <midtexture colordiffuse="FFFF4081">white.png</midtexture>
+                    </control>
+                </control>
+                <!-- Textes -->
+                <control type="group">
+                    <top>20</top>
+                    <left>290</left>
+                    <right>20</right>
+                    <control type="label">
+                        <width>auto</width>
+                        <height>35</height>
+                        <aligny>center</aligny>
+                        <font>font25_title</font>
+                        <textcolor>eeffffff</textcolor>
+                        <shadowcolor>00000000</shadowcolor>
+                        <label>$INFO[Window.Property(alldebridmc_countdown_text)]</label>
+                    </control>
+                    <control type="grouplist">
+                        <orientation>horizontal</orientation>
+                        <height>35</height>
+                        <top>40</top>
+                        <itemgap>0</itemgap>
+                        <control type="label">
+                            <width>auto</width>
+                            <height>35</height>
+                            <aligny>center</aligny>
+                            <font>font12</font>
+                            <textcolor>eeffffff</textcolor>
+                            <shadowcolor>00000000</shadowcolor>
+                            <label>$INFO[Window.Property(alldebridmc_showtitle),, - ]$INFO[Window.Property(alldebridmc_season),S,]$INFO[Window.Property(alldebridmc_episode),E, - ]$INFO[Window.Property(alldebridmc_title)]   </label>
+                        </control>
+                        <control type="image">
+                            <width>19</width>
+                            <height>19</height>
+                            <aspect>keep</aspect>
+                            <texture colordiffuse="FFFF4081">star.png</texture>
+                            <animation effect="slide" end="0,8" time="0" condition="true">Conditional</animation>
+                            <visible>!String.IsEmpty(Window.Property(alldebridmc_rating))</visible>
+                        </control>
+                        <control type="label">
+                            <width>auto</width>
+                            <height>35</height>
+                            <aligny>center</aligny>
+                            <label>$INFO[Window.Property(alldebridmc_rating), ,   ]</label>
+                            <font>font12</font>
+                            <textcolor>eeffffff</textcolor>
+                            <shadowcolor>00000000</shadowcolor>
+                            <visible>!String.IsEmpty(Window.Property(alldebridmc_rating))</visible>
+                        </control>
+                    </control>
+                    <control type="grouplist">
+                        <orientation>horizontal</orientation>
+                        <height>56</height>
+                        <bottom>20</bottom>
+                        <itemgap>10</itemgap>
+                        <control type="button" id="501">
+                            <label>    $ADDON[plugin.video.alldebridmc 30346]</label>
+                            <height>56</height>
+                            <width min="50">auto</width>
+                            <font>font20_title</font>
+                            <textoffsetx>55</textoffsetx>
+                            <textcolor>ddffffff</textcolor>
+                            <focusedcolor>eeffffff</focusedcolor>
+                            <selectedcolor>ddffffff</selectedcolor>
+                            <shadowcolor>22000000</shadowcolor>
+                            <aligny>center</aligny>
+                            <align>center</align>
+                            <texturefocus border="10" colordiffuse="FF172A91">white.png</texturefocus>
+                            <texturenofocus border="10" colordiffuse="FF212121">white.png</texturenofocus>
+                            <pulseonselect>no</pulseonselect>
+                        </control>
+                        <control type="button" id="502">
+                            <label>$ADDON[plugin.video.alldebridmc 30347]</label>
+                            <height>56</height>
+                            <width min="50">auto</width>
+                            <font>font20_title</font>
+                            <textoffsetx>15</textoffsetx>
+                            <textcolor>ddffffff</textcolor>
+                            <focusedcolor>eeffffff</focusedcolor>
+                            <selectedcolor>ddffffff</selectedcolor>
+                            <shadowcolor>22000000</shadowcolor>
+                            <aligny>center</aligny>
+                            <align>center</align>
+                            <texturefocus border="10" colordiffuse="FF172A91">white.png</texturefocus>
+                            <texturenofocus border="10" colordiffuse="FF212121">white.png</texturenofocus>
+                            <pulseonselect>no</pulseonselect>
+                        </control>
+                    </control>
+                </control>
+            </control>
+        </control>
+    </controls>
+</window>
