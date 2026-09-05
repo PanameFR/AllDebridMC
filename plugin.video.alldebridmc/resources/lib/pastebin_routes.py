@@ -361,15 +361,24 @@ def render_network_browse(base_url, handle, params):
     label = params.get('label') or category
     network_id = params.get('network_id', '')
     network_name = params.get('network_name') or ''
+    page = int(params.get('page') or 1)
 
     try:
-        entries = api_client.pastebin_network_browse(category, network_id) if network_id else []
+        data = api_client.pastebin_network_browse(category, network_id, page=page) if network_id else {}
     except api_client.ApiError as exc:
         _handle_api_error(exc)
-        entries = []
+        data = {}
+
+    entries = data.get('entries', [])
+    next_page_url = None
+    if data.get('has_next'):
+        next_page_url = navigation.build_watch_action_url(
+            base_url, 'pastebin_category_network', category=category, label=label,
+            network_id=network_id, network_name=network_name, page=page + 1,
+        )
 
     screen_label = '{0} — {1}'.format(label, network_name) if network_name else label
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label, next_page_url=next_page_url)
 
 
 def render_recent(base_url, handle, params):
@@ -530,15 +539,24 @@ def render_group_items(base_url, handle, params):
     label = params.get('label') or category
     group = params.get('group') or ''
     group_display = params.get('group_display') or group
+    page = int(params.get('page') or 1)
 
     try:
-        entries = api_client.pastebin_group_items(category, group) if group else []
+        data = api_client.pastebin_group_items(category, group, page=page) if group else {}
     except api_client.ApiError as exc:
         _handle_api_error(exc)
-        entries = []
+        data = {}
+
+    entries = data.get('entries', [])
+    next_page_url = None
+    if data.get('has_next'):
+        next_page_url = navigation.build_watch_action_url(
+            base_url, 'pastebin_category_group_items', category=category, label=label,
+            group=group, group_display=group_display, page=page + 1,
+        )
 
     screen_label = '{0} — {1}'.format(label, group_display) if group_display else label
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label, next_page_url=next_page_url)
 
 
 # ---- Années (vStream::showYears) -------------------------------------------
@@ -574,15 +592,23 @@ def render_year_browse(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
     year = params.get('year', '')
+    page = int(params.get('page') or 1)
 
     try:
-        entries = api_client.pastebin_year_browse(category, year) if year else []
+        data = api_client.pastebin_year_browse(category, year, page=page) if year else {}
     except api_client.ApiError as exc:
         _handle_api_error(exc)
-        entries = []
+        data = {}
+
+    entries = data.get('entries', [])
+    next_page_url = None
+    if data.get('has_next'):
+        next_page_url = navigation.build_watch_action_url(
+            base_url, 'pastebin_category_year', category=category, label=label, year=year, page=page + 1,
+        )
 
     screen_label = '{0} — {1}'.format(label, year) if year else label
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label, next_page_url=next_page_url)
 
 
 # ---- Alphabétique (vStream::alphaList) --------------------------------------
@@ -615,15 +641,23 @@ def render_letter_browse(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
     letter = params.get('letter', '')
+    page = int(params.get('page') or 1)
 
     try:
-        entries = api_client.pastebin_letter_browse(category, letter) if letter else []
+        data = api_client.pastebin_letter_browse(category, letter, page=page) if letter else {}
     except api_client.ApiError as exc:
         _handle_api_error(exc)
-        entries = []
+        data = {}
+
+    entries = data.get('entries', [])
+    next_page_url = None
+    if data.get('has_next'):
+        next_page_url = navigation.build_watch_action_url(
+            base_url, 'pastebin_category_letter', category=category, label=label, letter=letter, page=page + 1,
+        )
 
     screen_label = '{0} — {1}'.format(label, letter) if letter else label
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label, next_page_url=next_page_url)
 
 
 # ---- Aléatoire (vStream::showMovies bRandom=True) ---------------------------

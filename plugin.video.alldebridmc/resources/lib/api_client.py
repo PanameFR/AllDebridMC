@@ -357,8 +357,14 @@ def backup_list():
 
 # ---- catalogue Pastebin (etape 3 du chantier de suppression de vStream) ---
 
-PASTEBIN_TIMEOUT = 25  # secondes - meme raison que LISTS_TIMEOUT : parcourir/
+PASTEBIN_TIMEOUT = 45  # secondes - meme raison que LISTS_TIMEOUT : parcourir/
 # chercher une categorie entiere peut tomber sur un cache Pastebin froid.
+# Relevee de 25 a 45s : constate en conditions reelles qu'au demarrage de
+# Kodi, Arctic Horizon 2 declenche une vingtaine de widgets d'un coup -
+# chaque route repond pourtant vite en isolation (<1.2s, verifie), donc le
+# delai vient de Kodi lui-meme (nombre de scripts d'addon executes en
+# parallele au demarrage), pas du serveur - une marge plus large absorbe ce
+# pic ponctuel sans cout dans le cas normal.
 
 PASTEBIN_REFRESH_TIMEOUT = 60  # secondes - rafraichit les 7 categories l'une
 # apres l'autre cote serveur (voir pastebin_routes.py), largement au-dela du
@@ -436,10 +442,11 @@ def pastebin_networks(category):
     ).get('networks', [])
 
 
-def pastebin_network_browse(category, network_id):
+def pastebin_network_browse(category, network_id, page=1):
     return _get(
-        '/api/kodi/pastebin/category/{0}/network/{1}'.format(category, network_id), timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+        '/api/kodi/pastebin/category/{0}/network/{1}'.format(category, network_id), {'page': page},
+        timeout=PASTEBIN_TIMEOUT,
+    )
 
 
 # ---- liens sauvegardes AllDebrid (etape 4 du chantier de suppression de vStream) --
@@ -460,16 +467,18 @@ def pastebin_years(category):
     return _get('/api/kodi/pastebin/category/{0}/years'.format(category), timeout=PASTEBIN_TIMEOUT).get('years', [])
 
 
-def pastebin_year_browse(category, year):
+def pastebin_year_browse(category, year, page=1):
     return _get(
-        '/api/kodi/pastebin/category/{0}/year/{1}'.format(category, year), timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+        '/api/kodi/pastebin/category/{0}/year/{1}'.format(category, year), {'page': page},
+        timeout=PASTEBIN_TIMEOUT,
+    )
 
 
-def pastebin_letter_browse(category, letter):
+def pastebin_letter_browse(category, letter, page=1):
     return _get(
-        '/api/kodi/pastebin/category/{0}/letter/{1}'.format(category, letter), timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+        '/api/kodi/pastebin/category/{0}/letter/{1}'.format(category, letter), {'page': page},
+        timeout=PASTEBIN_TIMEOUT,
+    )
 
 
 def pastebin_random(category):
@@ -486,10 +495,11 @@ def pastebin_group_children(category, parent):
     ).get('children', [])
 
 
-def pastebin_group_items(category, group):
+def pastebin_group_items(category, group, page=1):
     return _get(
-        '/api/kodi/pastebin/category/{0}/group_items'.format(category), {'group': group}, timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+        '/api/kodi/pastebin/category/{0}/group_items'.format(category), {'group': group, 'page': page},
+        timeout=PASTEBIN_TIMEOUT,
+    )
 
 
 def alldebrid_saved_links():

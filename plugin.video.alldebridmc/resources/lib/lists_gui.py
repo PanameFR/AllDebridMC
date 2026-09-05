@@ -82,9 +82,24 @@ def build_list_item(entry):
             pass
     if entry.get('overview'):
         info.setPlot(entry['overview'])
+    if entry.get('rating'):
+        info.setRating(float(entry['rating']))
+    if entry.get('runtime'):
+        info.setDuration(int(entry['runtime']) * 60)  # TMDB : minutes -> Kodi attend des secondes
 
+    art = {}
     if entry.get('poster_url'):
-        li.setArt({'poster': entry['poster_url'], 'thumb': entry['poster_url']})
+        art['poster'] = art['thumb'] = entry['poster_url']
+    if entry.get('fanart_url'):
+        art['fanart'] = entry['fanart_url']
+    if entry.get('landscape_url'):
+        # Arctic Horizon 2 (variable Image_Landscape) affiche Art(landscape)
+        # en priorite sur Art(fanart) pour les vignettes de widget - sans ca
+        # les tuiles retombent sur le fanart (arriere-plan uni) au lieu du
+        # visuel avec le titre incruste, comme sur les widgets vStream.
+        art['landscape'] = entry['landscape_url']
+    if art:
+        li.setArt(art)
 
     return li
 
