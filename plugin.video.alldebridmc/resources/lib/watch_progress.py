@@ -459,7 +459,12 @@ def _build_vstream_item(base_url, entry):
 
     list_item = xbmcgui.ListItem(label=label, offscreen=True)
     if poster.get('poster_url'):
-        list_item.setArt({'thumb': poster['poster_url'], 'poster': poster['poster_url']})
+        art = {'thumb': poster['poster_url'], 'poster': poster['poster_url']}
+        if poster.get('fanart_url'):
+            art['fanart'] = poster['fanart_url']
+        if poster.get('landscape_url'):
+            art['landscape'] = poster['landscape_url']
+        list_item.setArt(art)
 
     info = list_item.getVideoInfoTag()
     info.setTitle(label)
@@ -468,6 +473,10 @@ def _build_vstream_item(base_url, entry):
         info.setYear(int(year))
     if poster.get('overview'):
         info.setPlot(poster['overview'])
+    if poster.get('rating'):
+        info.setRating(float(poster['rating']))
+    if poster.get('runtime'):
+        info.setDuration(int(poster['runtime']) * 60)  # TMDB : minutes -> Kodi attend des secondes
 
     tmdb_id = poster.get('tmdb_id')
     if is_series:

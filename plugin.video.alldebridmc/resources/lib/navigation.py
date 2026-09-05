@@ -623,7 +623,16 @@ def _entry_art(entry):
 
     poster = entry.get('poster')
     if poster and poster.get('poster_url'):
-        return {'thumb': poster['poster_url'], 'poster': poster['poster_url']}
+        art = {'thumb': poster['poster_url'], 'poster': poster['poster_url']}
+        # Absents pour la plupart des ecrans de navigation locale (seul
+        # watch_progress.py::_enrich_path les fournit actuellement) - ne
+        # rien ajouter au lieu d'un artefact vide quand la source ne les a
+        # pas encore.
+        if poster.get('fanart_url'):
+            art['fanart'] = poster['fanart_url']
+        if poster.get('landscape_url'):
+            art['landscape'] = poster['landscape_url']
+        return art
 
     return {}
 
@@ -668,6 +677,10 @@ def _apply_metadata(info, entry):
             info.setYear(int(poster['year']))
         if poster.get('overview'):
             info.setPlot(poster['overview'])
+        if poster.get('rating'):
+            info.setRating(float(poster['rating']))
+        if poster.get('runtime'):
+            info.setDuration(int(poster['runtime']) * 60)  # TMDB : minutes -> Kodi attend des secondes
 
 
 def build_list_item(base_url, entry, next_entry=None):
