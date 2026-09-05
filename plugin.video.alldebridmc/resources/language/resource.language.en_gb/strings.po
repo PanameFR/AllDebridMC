@@ -1,0 +1,440 @@
+# Kodi Media Center language file
+# Addon Name: AllDebrid Media Center
+# Addon id: plugin.video.alldebridmc
+# Addon Provider: jordan
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en_GB\n"
+
+msgctxt "#30000"
+msgid "Server"
+msgstr ""
+
+msgctxt "#30001"
+msgid "Server address"
+msgstr ""
+
+msgctxt "#30002"
+msgid "API port"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Use HTTPS"
+msgstr ""
+
+msgctxt "#30004"
+msgid "Username"
+msgstr ""
+
+msgctxt "#30005"
+msgid "Password"
+msgstr ""
+
+msgctxt "#30006"
+msgid "Test connection"
+msgstr ""
+
+msgctxt "#30007"
+msgid "Network share (SMB)"
+msgstr ""
+
+msgctxt "#30008"
+msgid "SMB share name"
+msgstr ""
+
+msgctxt "#30009"
+msgid "SMB username"
+msgstr ""
+
+msgctxt "#30010"
+msgid "SMB password"
+msgstr ""
+
+msgctxt "#30011"
+msgid "Connection successful"
+msgstr ""
+
+msgctxt "#30012"
+msgid "Could not reach the server. Check your settings."
+msgstr ""
+
+msgctxt "#30013"
+msgid "Invalid credentials. Check your username and password."
+msgstr ""
+
+msgctxt "#30014"
+msgid "Information"
+msgstr ""
+
+msgctxt "#30100"
+msgid "Lists"
+msgstr ""
+
+msgctxt "#30101"
+msgid "TMDB API key (lists)"
+msgstr ""
+
+msgctxt "#30102"
+msgid "Metadata language"
+msgstr ""
+
+msgctxt "#30104"
+msgid "Show list item count"
+msgstr ""
+
+msgctxt "#30105"
+msgid "Enable debug logging (lists)"
+msgstr ""
+
+msgctxt "#30150"
+msgid "My Lists"
+msgstr ""
+
+msgctxt "#30151"
+msgid "Add to a list"
+msgstr ""
+
+msgctxt "#30152"
+msgid "Add to a list"
+msgstr ""
+
+msgctxt "#30200"
+msgid "Device"
+msgstr ""
+
+msgctxt "#30201"
+msgid "Name of this device"
+msgstr ""
+
+msgctxt "#30202"
+msgid "Sync playback resume across devices"
+msgstr ""
+
+msgctxt "#30203"
+msgid "E.g: Living Room TV"
+msgstr ""
+
+msgctxt "#30250"
+msgid "In progress"
+msgstr ""
+
+msgctxt "#30251"
+msgid "History"
+msgstr ""
+
+msgctxt "#30252"
+msgid "Resume playback?"
+msgstr ""
+
+msgctxt "#30253"
+msgid "Resume from where you stopped on {0} ({1})?"
+msgstr ""
+
+msgctxt "#30254"
+msgid "Resume"
+msgstr ""
+
+msgctxt "#30255"
+msgid "From the start"
+msgstr ""
+
+msgctxt "#30256"
+msgid "Remove"
+msgstr ""
+
+msgctxt "#30259"
+msgid "Media"
+msgstr ""
+
+msgctxt "#30260"
+msgid "Viewing"
+msgstr ""
+
+msgctxt "#30300"
+msgid "Backup"
+msgstr ""
+
+msgctxt "#30301"
+msgid "Preparing the backup"
+msgstr ""
+
+msgctxt "#30302"
+msgid "Cancelled."
+msgstr ""
+
+msgctxt "#30303"
+msgid "Sending to the server..."
+msgstr ""
+
+msgctxt "#30304"
+msgid "Downloading the backup..."
+msgstr ""
+
+msgctxt "#30305"
+msgid "Restoring files..."
+msgstr ""
+
+msgctxt "#30307"
+msgid "Finishing up..."
+msgstr ""
+
+msgctxt "#30308"
+msgid "Back up now"
+msgstr ""
+
+msgctxt "#30309"
+msgid "Back up Kodi now and send it to the server?"
+msgstr ""
+
+msgctxt "#30310"
+msgid "Backup sent to the server."
+msgstr ""
+
+msgctxt "#30311"
+msgid "Restoring this backup will overwrite this device's settings, addons and data. Continue?"
+msgstr ""
+
+msgctxt "#30312"
+msgid "Restart recommended"
+msgstr ""
+
+msgctxt "#30313"
+msgid "Restart Kodi now to apply all the changes?"
+msgstr ""
+
+msgctxt "#30314"
+msgid "Season %s"
+msgstr ""
+
+msgctxt "#30315"
+msgid "Episode %s"
+msgstr ""
+
+msgctxt "#30316"
+msgid "Refresh"
+msgstr ""
+
+msgctxt "#30317"
+msgid "Refreshed."
+msgstr ""
+
+msgctxt "#30318"
+msgid "Items per page (Lists)"
+msgstr ""
+
+msgctxt "#30319"
+msgid "Force refresh now"
+msgstr ""
+
+msgctxt "#30320"
+msgid "Settings"
+msgstr ""
+
+msgctxt "#30321"
+msgid "Auto-refresh interval, in minutes (Lists) - 0 disables it"
+msgstr ""
+
+msgctxt "#30322"
+msgid "Kodi settings restored."
+msgstr ""
+
+msgctxt "#30330"
+msgid "Movies"
+msgstr ""
+
+msgctxt "#30331"
+msgid "TV Shows"
+msgstr ""
+
+msgctxt "#30332"
+msgid "Documentaries"
+msgstr ""
+
+msgctxt "#30333"
+msgid "Replays"
+msgstr ""
+
+msgctxt "#30334"
+msgid "Shows"
+msgstr ""
+
+msgctxt "#30335"
+msgid "Animation"
+msgstr ""
+
+msgctxt "#30336"
+msgid "Anime"
+msgstr ""
+
+msgctxt "#30337"
+msgid "Other"
+msgstr ""
+
+msgctxt "#30338"
+msgid "Search"
+msgstr ""
+
+msgctxt "#30339"
+msgid "Search the local library (TMDB title)"
+msgstr ""
+
+msgctxt "#30340"
+msgid "No results."
+msgstr ""
+
+msgctxt "#30341"
+msgid "Search: \"{0}\""
+msgstr ""
+
+msgctxt "#30342"
+msgid "Episode chaining"
+msgstr ""
+
+msgctxt "#30343"
+msgid "Auto-chain episodes (local library + vStream)"
+msgstr ""
+
+msgctxt "#30344"
+msgid "Show prompt this many seconds before the end"
+msgstr ""
+
+msgctxt "#30345"
+msgid "Auto-play next episode after this many seconds"
+msgstr ""
+
+msgctxt "#30346"
+msgid "Watch now"
+msgstr ""
+
+msgctxt "#30347"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#30348"
+msgid "Next episode in {0}s"
+msgstr ""
+
+msgctxt "#30349"
+msgid "Applies to the local library and to Pastebin content alike - entirely handled by this addon, no external addon (service.upnext) involved."
+msgstr ""
+
+msgctxt "#30350"
+msgid "\"{0}\" removed"
+msgstr ""
+
+msgctxt "#30351"
+msgid "Show TV shows as posters (like movies)"
+msgstr "Show TV shows as posters (like movies)"
+
+msgctxt "#30352"
+msgid "Arctic Horizon 2 renders a TV shows folder as landscape tiles and a movies folder as tall posters, even though the addon provides exactly the same artwork in both cases. When enabled, TV show listings are announced as movies so the same poster wall is used everywhere. Item details remain those of TV shows."
+msgstr "Arctic Horizon 2 renders a TV shows folder as landscape tiles and a movies folder as tall posters, even though the addon provides exactly the same artwork in both cases. When enabled, TV show listings are announced as movies so the same poster wall is used everywhere. Item details remain those of TV shows."
+
+msgctxt "#30353"
+msgid "Choose quality"
+msgstr "Choose quality"
+
+msgctxt "#30354"
+msgid "No file available for this title right now."
+msgstr "No file available for this title right now."
+
+msgctxt "#30355"
+msgid "Pastebin"
+msgstr "Pastebin"
+
+msgctxt "#30356"
+msgid "AllDebrid"
+msgstr "AllDebrid"
+
+msgctxt "#30358"
+msgid "Browse all"
+msgstr "Browse all"
+
+msgctxt "#30359"
+msgid "Popular"
+msgstr "Popular"
+
+msgctxt "#30360"
+msgid "Latest additions"
+msgstr "Latest additions"
+
+msgctxt "#30361"
+msgid "Manage access codes"
+msgstr "Manage access codes"
+
+msgctxt "#30362"
+msgid "Refresh catalog now"
+msgstr "Refresh catalog now"
+
+msgctxt "#30363"
+msgid "Catalog refreshed."
+msgstr "Catalog refreshed."
+
+msgctxt "#30364"
+msgid "Access code for {0}"
+msgstr "Access code for {0}"
+
+msgctxt "#30365"
+msgid "Code updated."
+msgstr "Code updated."
+
+msgctxt "#30366"
+msgid "No saved links on AllDebrid yet."
+msgstr "No saved links on AllDebrid yet."
+
+msgctxt "#30367"
+msgid "Delete this link"
+msgstr "Delete this link"
+
+msgctxt "#30368"
+msgid "Delete \"{0}\" from AllDebrid?"
+msgstr "Delete \"{0}\" from AllDebrid?"
+
+msgctxt "#30369"
+msgid "Link deleted."
+msgstr "Link deleted."
+
+msgctxt "#30371"
+msgid "This link is still being prepared, try again in a moment."
+msgstr "This link is still being prepared, try again in a moment."
+
+msgctxt "#30372"
+msgid "New releases"
+msgstr "New releases"
+
+msgctxt "#30373"
+msgid "Genres"
+msgstr "Genres"
+
+msgctxt "#30374"
+msgid "Top rated"
+msgstr "Top rated"
+
+msgctxt "#30375"
+msgid "By broadcaster"
+msgstr "By broadcaster"
+
+msgctxt "#30376"
+msgid "Search - Collections"
+msgstr "Search - Collections"
+
+msgctxt "#30377"
+msgid "Lists"
+msgstr "Lists"
+
+msgctxt "#30378"
+msgid "Years"
+msgstr "Years"
+
+msgctxt "#30379"
+msgid "Alphabetical"
+msgstr "Alphabetical"
+
+msgctxt "#30380"
+msgid "Random"
+msgstr "Random"
+
+msgctxt "#30381"
+msgid "No collection found."
+msgstr "No collection found."
