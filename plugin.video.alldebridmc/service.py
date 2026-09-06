@@ -27,26 +27,33 @@ sondage de base tierce :
    - JAMAIS pendant une lecture en cours, meme si l'ecran affiche au moment
      du declenchement etait un des notres avant de lancer la lecture.
 
-   Pour les ecrans de reprise de lecture (watch_in_progress/watch_history)
-   ET l'ecran d'accueil natif (voir plus bas pourquoi l'accueil a besoin
-   d'un traitement different) : ne rafraichit que si le serveur signale un
-   changement REEL depuis la derniere fois (watch_progress.
-   server_has_new_watch_progress, horodatage cote serveur mis a jour a
-   chaque ecriture de progression - voir watch_progress.py sur le Pi),
-   jamais sur une simple minuterie aveugle - demande explicitement suite au
-   widget "En cours" d'un skin (Arctic Horizon 2) ne refletant pas une
-   reprise synchronisee depuis un autre appareil sans rafraichissement
-   manuel. Les ecrans de listes (lists_home/lists_show) gardent eux le
-   comportement d'origine (minuterie simple), un changement de contenu de
-   liste n'etant pas signale par ce meme horodatage.
+   Cette minuterie d'inactivite ne concerne PLUS que les ecrans de listes
+   (lists_home/lists_show), un changement de contenu de liste n'etant
+   signale par aucun horodatage serveur - voir _maybe_auto_refresh_lists.
+
+1bis. Rafraichissement de la reprise de lecture (ecrans watch_in_progress/
+   watch_history et widgets de l'accueil) : desormais completement
+   independant du point 1, voir _maybe_refresh_watch_progress pour le
+   detail. Il etait auparavant soumis a la meme porte d'inactivite, ce qui
+   le rendait inoperant dans le cas d'usage principal - un Kodi laisse
+   allume avait consomme son unique rafraichissement bien avant que
+   l'utilisateur ne revienne, d'ou un ReloadSkin manuel a chaque fois.
+
+   Deux choses y sont maintenant separees : DETECTER (a chaque tour, coute
+   presque rien, ne fait que lever un drapeau) et RAFRAICHIR (uniquement
+   quand l'utilisateur revient devant l'ecran, ou qu'un ecran de reprise est
+   deja affiche). Le serveur, de son cote, ne signale que les changements de
+   COMPOSITION des listes, jamais les battements de position - sans quoi
+   rafraichir "des qu'il y a du nouveau" rechargerait le skin en boucle
+   pendant qu'on regarde un film sur un autre appareil.
 
    Ecran d'accueil : Container.Refresh ne rafraichit que le CONTENEUR qui a
    le focus (deja etabli) - sur l'accueil, avec plusieurs widgets, rien ne
    garantit que ce soit le bon. ReloadSkin() recharge tout, widgets compris,
    de facon fiable quel que soit le skin (verifie contre le code source de
    Kodi : SkinBuiltins.cpp) - plus lourd visuellement (bref clignotement),
-   mais rare (throttle par l'intervalle, jamais sans changement reel confirme
-   par le serveur, jamais en lecture).
+   mais desormais limite a l'arrivee de l'utilisateur, jamais en rafale
+   (plancher absolu), jamais sans changement reel, jamais en lecture.
 
 2. Termine, a CHAQUE demarrage (tout premier appel de run(), avant la
    boucle), une restauration Kodi laissee en attente par kodi_backup.py -
@@ -58,6 +65,8 @@ sondage de base tierce :
    qui sert aussi de ping de presence pour eviter qu'une table de connexion
    reseau (routeur/NAT) n'expire faute d'activite prolongee.
 """
+import time
+
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -98,32 +107,103 @@ def _apply_pending_settings_restore():
         )
 
 
-def _maybe_auto_refresh():
-    """xbmc.executebuiltin direct (jamais navigation.run_refresh_action) :
-    voir la docstring en tete de module - c'est ce qui garantit qu'aucune
+def _maybe_auto_refresh_lists():
+    """Rafraichissement des ecrans de LISTES uniquement (lists_home/
+    lists_show), inchange : minuterie d'inactivite simple, un changement de
+    contenu de liste n'etant signale par aucun horodatage serveur.
+
+    xbmc.executebuiltin direct (jamais navigation.run_refresh_action) : voir
+    la docstring en tete de module - c'est ce qui garantit qu'aucune
     notification n'apparait pour un rafraichissement automatique."""
     if xbmc.Player().isPlaying():
         return
+    current_path = xbmc.getInfoLabel('Container.FolderPath')
+    if not current_path.startswith(_BASE_URL):
+        return
+    if any(action in current_path for action in _LISTS_ACTIONS):
+        xbmc.executebuiltin('Container.Refresh')
+
+
+# Plancher absolu entre deux rafraichissements de reprise, quoi qu'il arrive :
+# filet de securite pour qu'aucun defaut futur ne puisse produire une rafale
+# de ReloadSkin.
+REFRESH_FLOOR_SECONDS = 300
+# Au-dela de cette inactivite, l'appareil est considere comme laisse seul.
+ARRIVAL_IDLE_THRESHOLD = 120
+# Repasser sous ce seuil juste apres = quelqu'un vient d'agir sur la
+# telecommande, donc de revenir devant l'ecran.
+ARRIVAL_WAKE_IDLE = 30
+
+
+def _maybe_refresh_watch_progress(state):
+    """Rafraichit les ecrans de reprise (et l'accueil) - refondu apres audit.
+
+    L'ancienne version etait enfermee derriere la meme porte d'inactivite
+    que les listes : le rafraichissement ne partait qu'apres 30 minutes
+    d'inactivite ININTERROMPUE, et une seule fois par periode. Un Kodi
+    laisse allume dans une chambre avait donc deja consomme son unique
+    rafraichissement des le matin ; en rentrant le soir, apres avoir regarde
+    un film sur un autre appareil, le widget "En cours" restait perime et il
+    fallait un ReloadSkin manuel. C'est exactement le symptome signale.
+
+    La refonte separe deux choses qui etaient confondues :
+
+    - DETECTER coute presque rien (un petit fichier cote serveur) et se fait
+      donc a chaque tour de boucle. On se contente alors de lever un drapeau,
+      SANS rien rafraichir.
+    - RAFRAICHIR ne se fait qu'au moment ou ca sert : quand l'utilisateur
+      revient devant l'ecran (l'inactivite retombe brutalement), ou quand un
+      ecran de reprise est deja affiche sous ses yeux.
+
+    Sans cette separation, rafraichir des qu'il y a du nouveau rechargerait
+    le skin en boucle pendant qu'on regarde un film ailleurs - c'est aussi
+    pour cela que le serveur ne signale desormais que les changements de
+    COMPOSITION, jamais les battements de position (voir
+    watch_progress.pending_watch_progress_revision)."""
+    # 1. Detection - a chaque tour, sans consequence visible.
+    if state['pending'] is None:
+        state['pending'] = watch_progress.pending_watch_progress_revision()
+    if state['pending'] is None:
+        return
+
+    # 2. Jamais pendant une lecture.
+    if xbmc.Player().isPlaying():
+        return
+
+    # 3. Plancher anti-rafale.
+    now = time.time()
+    if now - state['last_refresh'] < REFRESH_FLOOR_SECONDS:
+        return
+
+    # 4. Le bon moment, et lui seul.
+    idle = xbmc.getGlobalIdleTime()
+    just_arrived = state['previous_idle'] >= ARRIVAL_IDLE_THRESHOLD and idle <= ARRIVAL_WAKE_IDLE
 
     current_path = xbmc.getInfoLabel('Container.FolderPath')
-    on_own_screen = current_path.startswith(_BASE_URL)
+    on_watch_screen = (
+        current_path.startswith(_BASE_URL)
+        and any(action in current_path for action in _WATCH_PROGRESS_ACTIONS)
+    )
 
-    if on_own_screen and any(action in current_path for action in _LISTS_ACTIONS):
+    if on_watch_screen:
+        # L'ecran concerne est deja affiche : Container.Refresh suffit, et
+        # ne coute pratiquement rien visuellement.
         xbmc.executebuiltin('Container.Refresh')
-        return
-
-    on_watch_screen = on_own_screen and any(action in current_path for action in _WATCH_PROGRESS_ACTIONS)
-    on_home_screen = xbmc.getCondVisibility('Window.IsActive(home)')
-    if not (on_watch_screen or on_home_screen):
-        return
-
-    if not watch_progress.server_has_new_watch_progress():
-        return
-
-    if on_home_screen:
+    elif just_arrived and xbmc.getCondVisibility('Window.IsActive(home)'):
+        # Accueil : Container.Refresh ne toucherait que le conteneur qui a le
+        # focus, sans garantie que ce soit le bon widget. ReloadSkin recharge
+        # tout de facon fiable quel que soit le skin (verifie contre le code
+        # source de Kodi : SkinBuiltins.cpp) - acceptable ici parce qu'il ne
+        # peut plus se produire qu'a l'arrivee, une fois, jamais en rafale.
         xbmc.executebuiltin('ReloadSkin()')
     else:
-        xbmc.executebuiltin('Container.Refresh')
+        return
+
+    # Le marqueur n'est pose qu'ICI, apres un rafraichissement reellement
+    # effectue : un rafraichissement reporte ne doit jamais perdre le signal.
+    watch_progress.mark_watch_progress_seen(state['pending'])
+    state['pending'] = None
+    state['last_refresh'] = now
 
 
 ANNOUNCE_INTERVAL = 10 * 60  # secondes entre deux annonces au serveur
@@ -164,6 +244,10 @@ def run():
     monitor = xbmc.Monitor()
     idle_refresh_done = False
     elapsed_since_announce = 0
+    # Etat du rafraichissement de reprise (voir _maybe_refresh_watch_progress) :
+    # `pending` retient la revision serveur vue mais pas encore montree,
+    # `previous_idle` sert a detecter le retour de l'utilisateur.
+    watch_state = {'pending': None, 'last_refresh': 0.0, 'previous_idle': 0}
 
     while not monitor.waitForAbort(POLL_INTERVAL):
         elapsed_since_announce += POLL_INTERVAL
@@ -173,6 +257,15 @@ def run():
                 _announce_device()
             except Exception:
                 xbmc.log('[alldebridmc] service: erreur pendant _announce_device()', xbmc.LOGERROR)
+
+        # Independant du reglage lists_refresh_interval_minutes (audit) : a 0,
+        # celui-ci desactivait aussi la synchronisation de reprise, qui n'a
+        # pourtant rien a voir avec les listes.
+        try:
+            _maybe_refresh_watch_progress(watch_state)
+        except Exception:
+            xbmc.log('[alldebridmc] service: erreur pendant _maybe_refresh_watch_progress()', xbmc.LOGERROR)
+        watch_state['previous_idle'] = xbmc.getGlobalIdleTime()
 
         interval_seconds = _refresh_interval_seconds()
         if interval_seconds:
@@ -192,9 +285,9 @@ def run():
             elif not idle_refresh_done:
                 idle_refresh_done = True
                 try:
-                    _maybe_auto_refresh()
+                    _maybe_auto_refresh_lists()
                 except Exception:
-                    xbmc.log('[alldebridmc] service: erreur pendant _maybe_auto_refresh()', xbmc.LOGERROR)
+                    xbmc.log('[alldebridmc] service: erreur pendant _maybe_auto_refresh_lists()', xbmc.LOGERROR)
         else:
             idle_refresh_done = False
 

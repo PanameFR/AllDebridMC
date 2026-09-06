@@ -683,6 +683,27 @@ def _apply_metadata(info, entry):
             info.setDuration(int(poster['runtime']) * 60)  # TMDB : minutes -> Kodi attend des secondes
 
 
+def _apply_watch_state(info, entry):
+    """Coche "vu" et barre de reprise dans la navigation NORMALE (audit).
+
+    Jusqu'ici, seuls les ecrans dedies "En cours"/"Historique" montraient
+    cet etat : en ouvrant une saison, rien ne distinguait les episodes deja
+    regardes de ceux qui restaient a voir, et le dernier episode entame
+    n'affichait aucune barre. L'etat vient de watch_state, pose par le
+    serveur sur chaque entree du listing (voir
+    watch_progress.annotate_entries_with_watch_state cote serveur) - aucune
+    requete reseau supplementaire ici."""
+    state = entry.get('watch_state')
+    if not state:
+        return
+    if state.get('watched'):
+        info.setPlaycount(1)
+        return
+    position, duration = state.get('position'), state.get('duration')
+    if position and duration:
+        info.setResumePoint(float(position), float(duration))
+
+
 def build_list_item(base_url, entry, next_entry=None):
     title = _entry_title(entry)
     list_item = xbmcgui.ListItem(label=title, offscreen=True)
@@ -694,6 +715,7 @@ def build_list_item(base_url, entry, next_entry=None):
     info = list_item.getVideoInfoTag()
     info.setTitle(title)
     _apply_metadata(info, entry)
+    _apply_watch_state(info, entry)
 
     poster = entry.get('poster') or {}
     context_items = []
@@ -724,6 +746,23 @@ def build_list_item(base_url, entry, next_entry=None):
         context_items.append(
             (ADDON.getLocalizedString(30151), 'RunPlugin({0})'.format(add_to_list_url))
         )
+
+    # "Lire depuis le debut" : la seule facon de repartir de zero maintenant
+    # que la reprise est directe et ne pose plus de question (voir
+    # watch_progress._apply_resume). Propose uniquement quand il y a
+    # effectivement une position a ignorer - inutile de l'afficher partout.
+    # PlayMedia (et non RunPlugin) : action=play resout la lecture via
+    # setResolvedUrl, il faut donc un contexte de lecture reel.
+    watch_state = entry.get('watch_state') or {}
+    if not entry.get('is_dir') and watch_state.get('position'):
+        from_start_url = _build_url(
+            base_url, action='play', path=entry['path'], title=title,
+            thumb=art.get('thumb', ''), fromstart='1',
+        )
+        context_items.append(
+            (ADDON.getLocalizedString(30384), 'PlayMedia({0})'.format(from_start_url))
+        )
+
     if context_items:
         list_item.addContextMenuItems(context_items)
 
@@ -897,7 +936,9 @@ def play_item(base_url, handle, params):
     # pour lists_routes/watch_progress dans route() - le module importe
     # navigation en tete, un import en tete ici créerait un cycle).
     from resources.lib import watch_progress
-    watch_progress.maybe_apply_resume(info, relative_path, title)
+    watch_progress.maybe_apply_resume(
+        info, relative_path, title, from_start=params.get('fromstart') == '1',
+    )
 
     list_item.setPath(playback.build_smb_url(relative_path))
     xbmcplugin.setResolvedUrl(handle, True, list_item)

@@ -438,3 +438,15 @@ msgstr "Aléatoire"
 msgctxt "#30381"
 msgid "No collection found."
 msgstr "Aucune saga trouvée."
+
+msgctxt "#30382"
+msgid "Resuming at {0}"
+msgstr "Reprise à {0}"
+
+msgctxt "#30383"
+msgid "Resuming at {0} (from {1})"
+msgstr "Reprise à {0} (depuis {1})"
+
+msgctxt "#30384"
+msgid "Play from the beginning"
+msgstr "Lire depuis le début"

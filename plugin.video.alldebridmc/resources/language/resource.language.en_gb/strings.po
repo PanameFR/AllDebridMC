@@ -438,3 +438,15 @@ msgstr "Random"
 msgctxt "#30381"
 msgid "No collection found."
 msgstr "No collection found."
+
+msgctxt "#30382"
+msgid "Resuming at {0}"
+msgstr "Resuming at {0}"
+
+msgctxt "#30383"
+msgid "Resuming at {0} (from {1})"
+msgstr "Resuming at {0} (from {1})"
+
+msgctxt "#30384"
+msgid "Play from the beginning"
+msgstr "Play from the beginning"

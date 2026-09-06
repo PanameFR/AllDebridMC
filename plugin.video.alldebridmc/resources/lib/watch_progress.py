@@ -44,8 +44,20 @@ ADDON = xbmcaddon.Addon()
 ADDON_NAME = ADDON.getAddonInfo('name')
 ADDON_ID = ADDON.getAddonInfo('id')
 
-HEARTBEAT_INTERVAL = 20  # secondes entre deux rapports pendant la lecture
+TICK = 1  # secondes entre deux mesures LOCALES de la position (aucun reseau)
+HEARTBEAT_INTERVAL = 60  # secondes entre deux envois pendant la lecture ACTIVE
 START_TIMEOUT = 45  # secondes max d'attente que la lecture demarre vraiment
+# Au-dela de la duree du media + cette marge, le traqueur s'arrete quoi qu'il
+# arrive - dernier filet contre un traqueur qui survivrait a sa lecture
+# (voir _track_playback).
+MAX_TRACK_OVERRUN = 900
+# Le fichier suivi n'est verrouille que pendant les toutes premieres
+# secondes : passe ce delai, un traqueur qui n'a pas encore su a quoi il
+# s'accrochait ne doit surtout pas s'accrocher a la lecture SUIVANTE.
+ANCHOR_GRACE = 10
+# En dessous, la position n'a pas vraiment bouge (lecture en pause, ou deux
+# mesures qui se croisent) - rien a envoyer.
+POSITION_EPSILON = 1.0
 
 _STATUS_BY_ACTION = {'watch_in_progress': 'in_progress', 'watch_history': 'watched'}
 _LABEL_BY_ACTION = {'watch_in_progress': 30250, 'watch_history': 30251}
@@ -59,10 +71,17 @@ def enabled():
 
 
 def device_name():
+    """Repli sur le nom d'hote que Kodi connait deja quand le reglage est
+    vide : constate en reel lors de l'audit, 377 des 430 entrees du serveur
+    n'avaient AUCUN nom d'appareil, et la reprise annoncait alors "depuis ?".
+    Le reglage explicite reste prioritaire quand il est renseigne."""
     try:
-        return (ADDON.getSettingString('device_name') or '').strip()
+        configured = (ADDON.getSettingString('device_name') or '').strip()
     except (AttributeError, TypeError):
-        return ''
+        configured = ''
+    if configured:
+        return configured
+    return (xbmc.getInfoLabel('System.FriendlyName') or '').strip()
 
 
 _LAST_SEEN_UPDATE_FILENAME = 'last_seen_watch_progress_update.json'
@@ -73,46 +92,58 @@ def _last_seen_update_path():
     return os.path.join(root, _LAST_SEEN_UPDATE_FILENAME)
 
 
-def _read_last_seen_update():
+def _read_last_seen_revision():
     try:
         with open(_last_seen_update_path(), 'r', encoding='utf-8') as fh:
-            return json.load(fh).get('updated_at')
+            return json.load(fh).get('revision')
     except (OSError, ValueError, AttributeError):
         return None
 
 
-def _write_last_seen_update(value):
+def _write_last_seen_revision(value):
     path = _last_seen_update_path()
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as fh:
-            json.dump({'updated_at': value}, fh)
+            json.dump({'revision': value}, fh)
     except OSError:
         pass
 
 
-def server_has_new_watch_progress():
-    """Utilise par service.py pour ne rafraichir un ecran (dont l'accueil,
-    voir _maybe_auto_refresh) que quand une synchronisation a REELLEMENT eu
-    lieu depuis un autre appareil - jamais sur une simple minuterie
-    aveugle. Compare l'horodatage du serveur (petit fichier, jamais
-    d'enrichissement - cf. api_client.get_watch_progress_last_updated) au
-    dernier vu localement (fichier a part, pas un reglage de l'addon -
-    meme logique que le marqueur de kodi_backup.py)."""
+def pending_watch_progress_revision():
+    """Revision du serveur si elle differe de la derniere vue ici, None
+    sinon (ou si le serveur est injoignable). Utilisee par service.py pour
+    savoir s'il y a quelque chose de nouveau a montrer.
+
+    Compare une REVISION STRUCTURELLE, jamais un horodatage d'ecriture
+    (audit) : cote serveur, l'horodatage bouge a chaque battement de
+    position, soit ~360 fois pour un film de 2 h. Un appareil au repos qui
+    se serait fie a lui aurait recharge son skin en boucle pendant qu'on
+    regarde un film sur un AUTRE appareil. La revision, elle, ne bouge que
+    quand la composition des ecrans change - 2 fois pour ce meme film.
+
+    Ne consomme RIEN : le marqueur local n'est pose qu'apres un
+    rafraichissement reellement effectue (mark_watch_progress_seen), sinon
+    un rafraichissement reporte - lecture en cours, plancher anti-rafale -
+    perdrait definitivement le signal."""
     try:
         remote = api_client.get_watch_progress_last_updated()
     except api_client.ApiError:
-        return False
+        return None
 
-    remote_value = remote.get('updated_at') if isinstance(remote, dict) else None
-    if not remote_value:
-        return False
+    if not isinstance(remote, dict):
+        return None
+    revision = remote.get('revision')
+    if revision is None or revision == _read_last_seen_revision():
+        return None
+    return revision
 
-    if remote_value == _read_last_seen_update():
-        return False
 
-    _write_last_seen_update(remote_value)
-    return True
+def mark_watch_progress_seen(revision):
+    """A appeler UNIQUEMENT apres un rafraichissement reellement effectue
+    (voir pending_watch_progress_revision). Fichier a part, pas un reglage
+    de l'addon - meme logique que le marqueur de kodi_backup.py."""
+    _write_last_seen_revision(revision)
 
 
 def _format_time(seconds):
@@ -126,17 +157,45 @@ def _format_time(seconds):
 
 # ---- reprise avant lecture (appelé depuis navigation.play_item) ----------
 
-def maybe_apply_resume(info, relative_path, title, list_item=None):
-    """list_item : optionnel, UNIQUEMENT necessaire quand la lecture demarre
-    via xbmc.Player().play() (jamais setResolvedUrl - voir
-    play_pastebin_movie/play_pastebin_episode). Constate en conditions
-    reelles : VideoInfoTag.setResumePoint() est bien lu par Kodi pour la
-    reprise NATIVE d'un item resolu via setResolvedUrl/la bibliotheque,
-    mais totalement ignore par Player().play() - la video repart de zero
-    malgre "Reprendre" accepte. Seule la propriete ListItem "StartOffset"
-    (en secondes, chaine) fait reellement seeker Player().play() au bon
-    endroit."""
-    if not relative_path or not enabled():
+def _apply_resume(info, list_item, position, duration, title, device):
+    """Reprend DIRECTEMENT, sans rien demander, et se contente de l'annoncer
+    par une notification qui ne bloque pas (demande explicite : "j'arrive je
+    lance l'episode ou le film ca reprend direct").
+
+    Remplace un dialogue yesno pose a chaque lancement, dont la branche
+    "non" appelait clear_watch_progress() : repondre non par reflexe - ou
+    simplement pour verifier de quel episode il s'agissait - effacait
+    definitivement la progression sur TOUS les appareils a la fois. Plus
+    aucune suppression en effet de bord ici ; seules l'action explicite
+    "Retirer" (voir _action_clear) et l'entree "Lire depuis le debut" du
+    menu contextuel touchent encore a la progression.
+
+    list_item : UNIQUEMENT necessaire quand la lecture demarre via
+    xbmc.Player().play() (jamais setResolvedUrl - voir play_pastebin_movie/
+    play_pastebin_episode). Constate en conditions reelles :
+    VideoInfoTag.setResumePoint() est bien lu par Kodi pour la reprise
+    NATIVE d'un item resolu via setResolvedUrl/la bibliotheque, mais
+    totalement ignore par Player().play() - la video repart de zero. Seule
+    la propriete ListItem "StartOffset" (en secondes, chaine) fait
+    reellement seeker Player().play() au bon endroit."""
+    info.setResumePoint(float(position), float(duration))
+    if list_item is not None:
+        list_item.setProperty('StartOffset', str(position))
+
+    if device:
+        message = ADDON.getLocalizedString(30383).format(_format_time(position), device)
+    else:
+        message = ADDON.getLocalizedString(30382).format(_format_time(position))
+    xbmcgui.Dialog().notification(
+        title or ADDON_NAME, message, xbmcgui.NOTIFICATION_INFO, 4000,
+    )
+
+
+def maybe_apply_resume(info, relative_path, title, list_item=None, from_start=False):
+    """from_start : pose par l'entree "Lire depuis le debut" du menu
+    contextuel (voir navigation.build_list_item) - la seule facon de
+    repartir de zero maintenant que la reprise ne pose plus de question."""
+    if not relative_path or not enabled() or from_start:
         return
 
     try:
@@ -151,38 +210,16 @@ def maybe_apply_resume(info, relative_path, title, list_item=None):
     if not position or not duration:
         return
 
-    device = progress.get('device') or '?'
-    message = ADDON.getLocalizedString(30253).format(device, _format_time(position))
-
-    # Le titre en en-tete plutot qu'un texte generique : utile pour lever
-    # toute ambiguite sur CE qui reprend, surtout depuis l'ecran "En cours"
-    # ou plusieurs reprises possibles se ressemblent a l'oeil.
-    resume = xbmcgui.Dialog().yesno(
-        heading=title or ADDON.getLocalizedString(30252),
-        message=message,
-        nolabel=ADDON.getLocalizedString(30255),
-        yeslabel=ADDON.getLocalizedString(30254),
-    )
-
-    if resume:
-        info.setResumePoint(float(position), float(duration))
-        if list_item is not None:
-            list_item.setProperty('StartOffset', str(position))
-    else:
-        try:
-            api_client.clear_watch_progress(relative_path)
-        except api_client.ApiError:
-            pass
+    _apply_resume(info, list_item, position, duration, title, progress.get('device'))
 
 
-def maybe_apply_resume_episode(info, tmdb_id, season, episode, title, list_item=None):
-    """Etape 2 du chantier de suppression de vStream : meme dialogue que
+def maybe_apply_resume_episode(info, tmdb_id, season, episode, title, list_item=None, from_start=False):
+    """Etape 2 du chantier de suppression de vStream : meme reprise que
     maybe_apply_resume, sur l'identite tmdb_id/saison/episode (deja precise
     cote serveur, voir get_watch_progress_vstream) plutot qu'un chemin -
     appelee depuis navigation.py::play_pastebin_episode, juste avant
-    xbmc.Player().play(). list_item : voir la docstring de maybe_apply_resume
-    (StartOffset, indispensable pour que Player().play() reprenne reellement)."""
-    if not enabled():
+    xbmc.Player().play()."""
+    if not enabled() or from_start:
         return
 
     try:
@@ -197,37 +234,37 @@ def maybe_apply_resume_episode(info, tmdb_id, season, episode, title, list_item=
     if not position or not duration:
         return
 
-    device = progress.get('device') or '?'
-    message = ADDON.getLocalizedString(30253).format(device, _format_time(position))
-
-    resume = xbmcgui.Dialog().yesno(
-        heading=title or ADDON.getLocalizedString(30252),
-        message=message,
-        nolabel=ADDON.getLocalizedString(30255),
-        yeslabel=ADDON.getLocalizedString(30254),
-    )
-
-    if resume:
-        info.setResumePoint(float(position), float(duration))
-        if list_item is not None:
-            list_item.setProperty('StartOffset', str(position))
-    else:
-        try:
-            api_client.clear_watch_progress_vstream(int(tmdb_id), season=int(season), episode=int(episode))
-        except api_client.ApiError:
-            pass
+    _apply_resume(info, list_item, position, duration, title, progress.get('device'))
 
 
 # ---- suivi pendant/apres lecture (appelé depuis navigation.play_item) ----
 
 class _ProgressPlayer(xbmc.Player):
+    """`flush` : un evenement vient de se produire (pause, reprise, saut de
+    chapitre...) et merite un envoi immediat plutot que d'attendre le
+    prochain battement - c'est ce qui rend la position exacte au moment ou
+    l'utilisateur risque de quitter."""
+
     def __init__(self):
         super().__init__()
         self.started = False
         self.stopped = False
+        self.flush = False
 
     def onAVStarted(self):
         self.started = True
+
+    def onPlayBackPaused(self):
+        self.flush = True
+
+    def onPlayBackResumed(self):
+        self.flush = True
+
+    def onPlayBackSeek(self, time, seekOffset):
+        self.flush = True
+
+    def onPlayBackSeekChapter(self, chapter):
+        self.flush = True
 
     def onPlayBackStopped(self):
         self.stopped = True
@@ -237,6 +274,13 @@ class _ProgressPlayer(xbmc.Player):
 
     def onPlayBackError(self):
         self.stopped = True
+
+
+def _playing_file(player):
+    try:
+        return player.getPlayingFile()
+    except (RuntimeError, Exception):  # noqa: B014 - Kodi leve large ici
+        return None
 
 
 def _report(relative_path, position, duration, device):
@@ -261,39 +305,107 @@ def report_vstream(tmdb_id, position, duration, device, resume_key=None, season=
 def _track_playback(report_fn):
     """Commun a track_playback/track_playback_episode : bloque jusqu'a la
     fin de la lecture en cours (voir docstring de tete de module), rapporte
-    via report_fn(position, duration, device) - jamais de callback
-    xbmc.Player (onAVStarted/onPlayBackStopped), sondage direct comme
-    partout ailleurs dans ce module."""
+    via report_fn(position, duration, device).
+
+    Deux corrections d'audit, toutes deux essentielles.
+
+    1. ANCRAGE AU FICHIER SUIVI. L'ancienne boucle ne se terminait que si
+       `player.stopped` etait vrai EN TETE de tour ; sa branche
+       "not player.isPlaying(): continue" repartait au waitForAbort sans
+       jamais sortir. Quand onPlayBackStopped n'atteignait pas cette
+       instance - script plugin ephemere pour la bibliotheque locale,
+       thread demon pour Pastebin - le traqueur survivait indefiniment et
+       continuait a interroger xbmc.Player(), qui est GLOBAL : il renvoyait
+       la video lue A CET INSTANT. Chaque fantome reecrivait donc sa vieille
+       cle avec la position d'un AUTRE film, toutes les 20 s.
+       Degats reels retrouves dans les donnees : quatre films portaient la
+       meme duree a la milliseconde (6170,624 s), trois d'entre eux marques
+       "vus" a 99,9 % sans avoir ete regardes. Meme signature cote Pastebin.
+       Le fichier en cours est desormais compare a chaque tour ; des qu'il
+       change, ce traqueur n'a plus rien a dire et sort.
+
+    2. MESURE LOCALE A LA SECONDE, ENVOI SUR EVENEMENT. L'ancien rapport
+       final reutilisait la position du dernier battement, soit jusqu'a 20 s
+       de retard sur l'arret reel. On mesure maintenant toutes les secondes
+       en memoire (aucun reseau) et on n'envoie que sur evenement (pause,
+       reprise, saut, arret, fin) ou battement espace - plus precis ET moins
+       de requetes qu'avant.
+       Corollaire : rien n'est envoye tant que la position ne bouge pas, ce
+       qui neutralise l'appareil laisse EN PAUSE. isPlaying() y reste vrai,
+       et ces media centers restent allumes en permanence : un Kodi oublie
+       en pause reecrivait la cle partagee en boucle et defaisait la
+       progression faite ailleurs.
+    """
     player = _ProgressPlayer()
     monitor = xbmc.Monitor()
     device = device_name()
 
     waited = 0
     while not player.started and waited < START_TIMEOUT:
-        if monitor.waitForAbort(1):
+        if monitor.waitForAbort(TICK):
             return
-        waited += 1
+        waited += TICK
 
     if not player.started:
         # La lecture n'a jamais vraiment demarre (erreur, SMB injoignable...)
         # - Kodi affiche deja sa propre erreur, rien a rapporter.
         return
 
+    tracked_file = _playing_file(player)
     last_position, last_duration = 0.0, 0.0
+    sent_position = None
+    since_send = 0
+    alive = 0
+
+    def _moved():
+        return sent_position is None or abs(last_position - sent_position) >= POSITION_EPSILON
 
     while not player.stopped:
-        if monitor.waitForAbort(HEARTBEAT_INTERVAL):
+        if monitor.waitForAbort(TICK):
             break
-        if player.stopped or not player.isPlaying():
+        since_send += TICK
+        alive += TICK
+
+        if player.stopped:
+            break
+        if not player.isPlaying():
             continue
+
+        current_file = _playing_file(player)
+        if tracked_file is None and alive <= ANCHOR_GRACE:
+            # L'ancrage n'a pas pu etre pris au demarrage (course avec Kodi) :
+            # on le rattrape, mais UNIQUEMENT dans les premieres secondes -
+            # au-dela, s'accrocher a ce qui joue reviendrait a devenir le
+            # fantome que ce mecanisme doit empecher.
+            tracked_file = current_file
+        elif tracked_file and current_file and current_file != tracked_file:
+            break
+
         try:
             last_position = player.getTime()
             last_duration = player.getTotalTime()
         except Exception:
             continue
-        report_fn(last_position, last_duration, device)
 
-    if last_duration:
+        # Plafond de vie absolu : meme si l'ancrage et les callbacks
+        # echouaient tous les deux, aucun traqueur ne survit tres au-dela
+        # de la duree de son propre media.
+        if last_duration and alive > last_duration + MAX_TRACK_OVERRUN:
+            break
+
+        if player.flush:
+            player.flush = False
+        elif since_send < HEARTBEAT_INTERVAL:
+            continue
+
+        if _moved():
+            report_fn(last_position, last_duration, device)
+            sent_position = last_position
+        since_send = 0
+
+    # Rapport final : la position date de moins d'une seconde, plus du
+    # dernier battement (voir point 2 de la docstring).
+    if last_duration and _moved():
         report_fn(last_position, last_duration, device)
 
 
@@ -580,7 +692,13 @@ def _render_show_episodes(base_url, handle, params):
             info.setPlot(entry['overview'])
         if entry.get('poster_url'):
             li.setArt({'thumb': entry['poster_url'], 'poster': entry['poster_url']})
-        if progress:
+        if entry.get('watched'):
+            # Coche "vu" native de Kodi (audit) : cet ecran posait bien une
+            # barre de reprise, mais ne marquait JAMAIS un episode comme vu -
+            # en parcourant une saison, rien ne distinguait ce qui avait
+            # deja ete regarde.
+            info.setPlaycount(1)
+        elif progress and progress.get('position') and progress.get('duration'):
             info.setResumePoint(float(progress['position']), float(progress['duration']))
 
         url_params = dict(
