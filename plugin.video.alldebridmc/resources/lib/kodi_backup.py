@@ -173,6 +173,29 @@ _TEMP_DIR = 'special://temp/alldebridmc_backup/'
 # valeurs pour ces prefixes, quoi que contienne la sauvegarde.
 _SETTINGS_EXCLUDE_PREFIXES = ('videoscreen.', 'audiooutput.')
 
+# Reglages qui provoquent un CONFLIT sur l'appareil cible, et pas une simple
+# difference de confort - jamais restaures depuis un autre appareil non plus.
+#
+# Constate en reel le 07/09/2026, restauration de "Pc Roman" sur KodiMiniPC :
+#   11:11:19  <CWebserver[8090]>: Started        <- port propre a KodiMiniPC
+#   11:11:20  <CWebserver[8090]>: Stopped        <- la restauration applique
+#   11:11:20  <CWebserver[8080]>: Failed to start   le port 8080 de Pc Roman
+#   11:11:26  <CWebserver[8090]>: Started        <- Kodi revient de lui-meme
+# Kodi affiche alors "Serveur Web - Echec du demarrage". Le port 8080 est
+# occupe sur CET appareil par le conteneur du serveur AllDebrid : c'est
+# precisement pour cela que Kodi y avait ete deplace sur 8090. Un numero de
+# port n'a de sens que sur la machine qui l'a choisi.
+#
+# Kodi s'est rattrape seul ici (retour sur 8090), mais rien ne le garantit :
+# mieux vaut ne jamais poser la question. Prefixe exclu ? Non : on veut
+# continuer a restaurer services.webserver (actif/inactif) et ses
+# identifiants, sans quoi un appareil neuf perdrait son acces JSON-RPC.
+_SETTINGS_EXCLUDE_EXACT = (
+    'services.webserverport',
+    'services.esport',
+    'services.devicename',
+)
+
 # Nom du fichier marqueur (voir apply_pending_settings_restore plus bas).
 _PENDING_SETTINGS_FILENAME = 'pending_settings_restore.json'
 
@@ -205,7 +228,7 @@ def _restore_settings(settings):
         setting_id = setting.get('id') or ''
         if setting.get('type') == 'action' or setting_id not in current_by_id:
             continue
-        if setting_id.startswith(_SETTINGS_EXCLUDE_PREFIXES):
+        if setting_id.startswith(_SETTINGS_EXCLUDE_PREFIXES) or setting_id in _SETTINGS_EXCLUDE_EXACT:
             skipped += 1
             continue
 
