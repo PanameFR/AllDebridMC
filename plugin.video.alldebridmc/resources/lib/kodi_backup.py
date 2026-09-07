@@ -16,6 +16,7 @@ d'un Android vers un Windows ne rendra pas forcément cet addon fonctionnel
 sur la nouvelle plateforme, même si Kodi résout bien special://home/
 correctement de son côté sur chaque plateforme.
 """
+import hashlib
 import json
 import os
 import re
@@ -95,29 +96,70 @@ _BINARY_EXTENSIONS = ('.dll', '.so', '.dylib', '.pyd')
 # supprime volontairement.
 #
 # Chemin relatif a la racine de la CATEGORIE (voir _CATEGORY_ROOTS), pas au
-# chemin absolu - -wal/-shm/-journal inclus (SQLite peut laisser ces
-# fichiers a cote du .db principal, jamais utiles sans lui).
+# chemin absolu.
+#
+# Le suffixe tolere apres le nom de base ((\..*)?) couvre a la fois les
+# annexes SQLite (-wal/-shm/-journal, jamais utiles sans leur .db) ET nos
+# propres copies de maintenance ".before-<chantier>". Constate lors de
+# l'audit du 07/09/2026 : l'ancien motif, ancre strictement, laissait
+# passer MyVideos131.db.before-episode-fix-backup, .before-full-resume-wipe
+# et deux vstream.db.before-* - 14 Mo embarques a chaque sauvegarde, et
+# surtout une regle bien plus fragile qu'elle n'en avait l'air.
 _STALE_LOCAL_DB_PATTERNS = (
     # db Kodi : bibliotheque video native (marque-pages/vu par fichier,
     # deja efface a chaque episode vStream par kodi_video_db.py - jamais
     # utile de la restaurer telle quelle sur un autre appareil).
-    ('database', re.compile(r'^MyVideos\d+\.db(-wal|-shm|-journal)?$')),
-    # db vStream : sa propre reprise/historique local (resume/watched) -
-    # voir vstream_db.py, deja uniquement lu/corrige par notre service.
-    ('addon_data', re.compile(r'^plugin\.video\.vstream/vstream\.db(-wal|-shm|-journal)?$')),
-    # db AllDebridMC : curseur de sondage local de vstream_db.py
-    # (last_resume_id/last_watched_id) - le restaurer sans sa base vStream
-    # associee (ci-dessus, jamais restauree non plus) desynchroniserait les
-    # deux de toute facon.
+    ('database', re.compile(r'^MyVideos\d+\.db([-.].*)?$')),
+    # db vStream : sa propre reprise/historique local (resume/watched).
+    ('addon_data', re.compile(r'^plugin\.video\.vstream/vstream\.db([-.].*)?$')),
+    # db AllDebridMC : curseur de sondage local de l'ancien vstream_db.py
+    # (retire depuis) - sans sa base vStream associee, jamais restauree non
+    # plus, il ne signifierait de toute facon plus rien.
     ('addon_data', re.compile(r'^plugin\.video\.alldebridmc/vstream_db_state\.json$')),
+)
+
+# Caches purement techniques, reconstruits tout seuls et SANS effet visible
+# pour l'utilisateur s'ils manquent - a distinguer des vignettes et du cache
+# de TMDbHelper, eux aussi regenerables mais dont l'absence se paie par un
+# ecran d'accueil lent le temps que tout se retelecharge (voir l'audit du
+# 07/09/2026 : ces deux-la sont donc volontairement CONSERVES).
+#
+# Poids reel mesure sur une sauvegarde de "Pc Roman" : 316 Mo sur 2,97 Go.
+_REGENERABLE_CACHE_PATTERNS = (
+    # vStream : caches de resultats, propres a son ancienne integration.
+    # Cet addon n'est plus pilote par le projet depuis le chantier vStream -
+    # ses caches ne servent donc plus rien ici (280 Mo a eux seuls).
+    ('addon_data', re.compile(r'^plugin\.video\.vstream/(video_cache|pastebin_cache)\.db([-.].*)?$')),
+    # InputStream Helper conserve une copie d'une version anterieure de
+    # inputstream.adaptive - or cet addon est deja exclu de la sauvegarde
+    # (voir _ADDONS_EXCLUDE), et un binaire reste specifique a la plateforme.
+    ('addon_data', re.compile(r'^script\.module\.inputstreamhelper/backup/')),
 )
 
 
 def _is_stale_local_db(category_name, relative_path):
+    """Fichiers dont la restauration pourrait REJOUER un etat perime vers le
+    serveur (voir le commentaire de _STALE_LOCAL_DB_PATTERNS)."""
     normalized = relative_path.replace(os.sep, '/')
     return any(
         category_name == category and pattern.match(normalized)
         for category, pattern in _STALE_LOCAL_DB_PATTERNS
+    )
+
+
+def _is_regenerable_cache(category_name, relative_path):
+    """Poids mort : ni utile a restaurer, ni visible par son absence."""
+    normalized = relative_path.replace(os.sep, '/')
+    return any(
+        category_name == category and pattern.match(normalized)
+        for category, pattern in _REGENERABLE_CACHE_PATTERNS
+    )
+
+
+def _is_excluded(category_name, relative_path):
+    return (
+        _is_stale_local_db(category_name, relative_path)
+        or _is_regenerable_cache(category_name, relative_path)
     )
 
 _TEMP_DIR = 'special://temp/alldebridmc_backup/'
@@ -278,7 +320,7 @@ def _build_zip(progress):
 
             exclude_top = _ADDONS_EXCLUDE if name == 'addons' else None
             for full, rel in _iter_files(root_special, recurse, exclude_top):
-                if _is_stale_local_db(name, rel):
+                if _is_excluded(name, rel):
                     continue
                 zf.write(full, '/'.join((name, rel)))
 
@@ -308,6 +350,13 @@ def run_backup(progress):
 
         sent = 0
         index = 0
+        # Empreinte calculee AU FIL de la lecture, donc sans relire le zip
+        # ni le charger en memoire : le serveur la recalcule de son cote et
+        # refuse l'archive si elle differe (voir _validate_archive cote
+        # serveur). C'est ce qui garantit qu'une archive acceptee est
+        # reellement complete - rien ne le verifiait auparavant.
+        digest = hashlib.sha256()
+
         with open(zip_path, 'rb') as fh:
             while True:
                 if progress.iscanceled():
@@ -316,8 +365,12 @@ def run_backup(progress):
                 chunk = fh.read(CHUNK_SIZE)
                 sent += len(chunk)
                 is_last = sent >= total_size
+                digest.update(chunk)
 
-                api_client.backup_upload_chunk(session_id, device, index, is_last, chunk)
+                api_client.backup_upload_chunk(
+                    session_id, device, index, is_last, chunk,
+                    sha256=digest.hexdigest() if is_last else None,
+                )
 
                 progress.update(
                     min(60 + int((sent / total_size) * 40), 99),
@@ -412,7 +465,7 @@ def run_restore(progress, backup_name):
                     # binaire (constate reellement sur vfs.sftp.dll) - voir
                     # _BINARY_EXTENSIONS plus haut.
                     continue
-                if _is_stale_local_db(category, relative):
+                if _is_excluded(category, relative):
                     # Meme raison qu'a la sauvegarde (_build_zip) - couvre
                     # aussi une sauvegarde plus ancienne, creee avant cette
                     # exclusion, qui contiendrait encore ces fichiers.

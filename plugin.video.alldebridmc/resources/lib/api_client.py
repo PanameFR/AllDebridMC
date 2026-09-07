@@ -326,11 +326,17 @@ def get_watch_progress_last_updated():
 BACKUP_TIMEOUT = 60  # secondes - un chunk peut prendre du temps sur un reseau lent
 
 
-def backup_upload_chunk(session_id, device, chunk_index, is_last, data):
-    query = urllib.parse.urlencode({
+def backup_upload_chunk(session_id, device, chunk_index, is_last, data, sha256=None):
+    """sha256 : empreinte de l'archive COMPLETE, transmise uniquement avec
+    le dernier morceau - le serveur la recalcule de son cote et refuse
+    l'archive si elle differe (voir _validate_archive cote serveur)."""
+    params = {
         'session_id': session_id, 'device': device,
         'chunk_index': chunk_index, 'is_last': '1' if is_last else '0',
-    })
+    }
+    if is_last and sha256:
+        params['sha256'] = sha256
+    query = urllib.parse.urlencode(params)
     url = _base_url() + '/api/kodi/backup/upload?' + query
 
     req = urllib.request.Request(

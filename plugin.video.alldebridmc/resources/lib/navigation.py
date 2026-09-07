@@ -433,10 +433,50 @@ def _run_backup_action(handle):
     xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
 
+def _restore_confirmation_message(backup_name):
+    """Message de confirmation qui dit enfin CE QU'ON S'APPRETE A POSER :
+    appareil d'origine, date, version de Kodi de la sauvegarde.
+
+    Ces informations viennent de la fiche tenue par le serveur (relue dans
+    l'archive au moment de sa validation, voir kodi_backup.py cote serveur) -
+    jamais du zip lui-meme, qu'il faudrait sinon telecharger en entier (des
+    Go) juste pour afficher trois lignes.
+
+    Renvoie le message generique seul si la sauvegarde est anterieure a ce
+    mecanisme et n'a donc pas ces informations."""
+    lines = []
+    try:
+        backup = next(
+            (b for b in kodi_backup.list_backups() if b.get('name') == backup_name), None
+        )
+    except api_client.ApiError:
+        backup = None
+
+    if backup:
+        lines.append(ADDON.getLocalizedString(30385).format(
+            backup.get('device') or '?', _format_backup_date(backup.get('created_at')),
+        ))
+        source_version = backup.get('kodi_version') or ''
+        if source_version:
+            here = xbmc.getInfoLabel('System.BuildVersion') or ''
+            lines.append(ADDON.getLocalizedString(30386).format(
+                source_version.split(' ')[0], here.split(' ')[0],
+            ))
+            # Avertit sans jamais bloquer : une version majeure differente
+            # n'empeche pas forcement une restauration de fonctionner, mais
+            # c'est le genre de detail qu'on veut voir AVANT, pas apres.
+            if source_version.split('.')[0] != here.split('.')[0]:
+                lines.append(ADDON.getLocalizedString(30387))
+
+    lines.append(ADDON.getLocalizedString(30311))
+    lines.append(ADDON.getLocalizedString(30388))
+    return '\n'.join(lines)
+
+
 def _run_restore_action(handle, backup_name):
     if backup_name:
         confirmed = xbmcgui.Dialog().yesno(
-            ADDON.getLocalizedString(30300), ADDON.getLocalizedString(30311),
+            ADDON.getLocalizedString(30300), _restore_confirmation_message(backup_name),
         )
         if confirmed:
             progress = xbmcgui.DialogProgress()

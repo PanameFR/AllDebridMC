@@ -450,3 +450,19 @@ msgstr "Reprise à {0} (depuis {1})"
 msgctxt "#30384"
 msgid "Play from the beginning"
 msgstr "Lire depuis le début"
+
+msgctxt "#30385"
+msgid "Backup from {0} — {1}"
+msgstr "Sauvegarde de {0} — {1}"
+
+msgctxt "#30386"
+msgid "Kodi {0} (this device: {1})"
+msgstr "Kodi {0} (cet appareil : {1})"
+
+msgctxt "#30387"
+msgid "Different major Kodi version — compatibility is not guaranteed."
+msgstr "Version majeure de Kodi différente — la compatibilité n'est pas garantie."
+
+msgctxt "#30388"
+msgid "Files absent from the backup are never deleted."
+msgstr "Les fichiers absents de la sauvegarde ne sont jamais supprimés."
