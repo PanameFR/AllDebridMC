@@ -154,16 +154,34 @@ def _run_monitor(next_info):
         xbmc.log('[alldebridmc] next_up: erreur pendant la surveillance', xbmc.LOGERROR)
 
 
+class _ChainPlayer(xbmc.Player):
+    """Distingue une fin NATURELLE de fichier d'un arret volontaire.
+
+    Indispensable pendant le compte a rebours : la video peut tres bien se
+    terminer avant lui (voir _show_popup_and_chain). Une fin naturelle ne
+    doit surtout pas annuler l'enchainement - seul un vrai "Annuler", ou un
+    arret demande par l'utilisateur, le fait."""
+
+    def __init__(self):
+        super().__init__()
+        self.ended = False
+        self.stopped = False
+
+    def onPlayBackEnded(self):
+        self.ended = True
+
+    def onPlayBackStopped(self):
+        self.stopped = True
+
+    def onPlayBackError(self):
+        self.stopped = True
+
+
 def _monitor_and_chain(next_info):
-    player = xbmc.Player()
+    player = _ChainPlayer()
     monitor = xbmc.Monitor()
 
     notify_before = _notify_before_end()
-    # Garde-fou : le compte a rebours ne doit jamais atteindre (ou depasser)
-    # le delai d'affichage, sinon la marge reelle avant la fin redevient
-    # nulle ou negative - exactement le probleme que ce module corrige.
-    # Au moins 1s de marge garantie meme avec des reglages mal choisis.
-    countdown_total = min(_autoplay_countdown(), max(1, notify_before - 1))
 
     waited = 0.0
     started = False
@@ -180,8 +198,17 @@ def _monitor_and_chain(next_info):
     if not started:
         return
 
+    remaining = 0.0
     while True:
         if monitor.waitForAbort(_MONITOR_TICK):
+            return
+        if player.stopped:
+            return
+        if player.ended:
+            # Fin atteinte sans etre jamais passe sous le seuil d'affichage
+            # (saut direct dans les dernieres secondes) : on enchaine quand
+            # meme, sans popup - il n'y a plus rien a proposer.
+            _player_open(next_info['play_url'])
             return
         try:
             if not player.isPlaying():
@@ -194,13 +221,25 @@ def _monitor_and_chain(next_info):
         if total <= 0:
             continue
 
-        if total - position <= notify_before:
+        remaining = total - position
+        if remaining <= notify_before:
             break
 
-    _show_popup_and_chain(player, monitor, next_info, countdown_total)
+    _show_popup_and_chain(player, monitor, next_info, remaining)
 
 
-def _show_popup_and_chain(player, monitor, next_info, countdown_total):
+def _show_popup_and_chain(player, monitor, next_info, remaining):
+    """remaining : temps REELLEMENT restant au moment ou le popup apparait.
+
+    Le compte a rebours ne peut jamais le depasser. Il etait jusqu'ici fige
+    sur le reglage (20 s par defaut), calcule avant meme de savoir ou en
+    etait la lecture - or si l'utilisateur saute a une vingtaine de secondes
+    de la fin, la video se termine AVANT la fin du compte a rebours. Le
+    lecteur s'arretait, le popup se fermait, et l'enchainement n'avait
+    jamais lieu (signale en reel : "si je vais a 18 secondes avant la fin le
+    popup ne se declenche pas")."""
+    countdown_total = max(1.0, min(float(_autoplay_countdown()), remaining - 1.0))
+
     popup = NextEpisodePopup(
         'script-alldebridmc-nextup.xml', ADDON.getAddonInfo('path'), 'default', '1080i',
     )
@@ -214,20 +253,20 @@ def _show_popup_and_chain(player, monitor, next_info, countdown_total):
         if monitor.waitForAbort(_COUNTDOWN_TICK):
             popup.close()
             return
-        try:
-            if not player.isPlaying():
-                # Lecture arretee manuellement avant la fin du compte a
-                # rebours - rien a enchainer.
-                popup.close()
-                return
-        except RuntimeError:
-            popup.close()
-            return
 
+        # L'intention de l'utilisateur passe avant tout le reste.
         if popup.is_cancel():
             popup.close()
             return
         if popup.is_watch_now():
+            break
+        if player.stopped:
+            # Arret volontaire pendant le compte a rebours : on n'enchaine pas.
+            popup.close()
+            return
+        if player.ended:
+            # Fin naturelle du fichier : c'est le cas NORMAL quand il restait
+            # moins que le compte a rebours. Surtout ne pas annuler ici.
             break
 
         elapsed += _COUNTDOWN_TICK

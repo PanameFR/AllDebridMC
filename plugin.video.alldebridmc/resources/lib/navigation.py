@@ -1146,20 +1146,62 @@ def _build_next_pastebin_episode_info(base_url, tmdb_id, params, chosen):
     constat reel que le choix de qualite s'affichait a chaque enchainement."""
     next_season = params.get('next_season')
     next_episode = params.get('next_episode')
+    next_title = params.get('next_title', '')
+    next_thumb = params.get('next_thumb', '')
+
     if not (next_season and next_episode):
-        return None
+        # Cas d'un episode DEJA lance par enchainement : l'URL construite ici
+        # pour l'episode suivant ne portait pas, elle, l'episode d'APRES. Le
+        # deuxieme enchainement d'affilee ne s'armait donc jamais - constate
+        # en reel sur Fairy Tail, "le 1er enchainement fonctionne mais le
+        # deuxieme absolument pas".
+        #
+        # On redemande la liste de la saison au serveur, qui fait deja
+        # autorite sur ce qui existe reellement (voir
+        # kodi_watch_progress_vstream_episodes). Un appel, une seule fois par
+        # episode, alors que la lecture est deja lancee.
+        found = _lookup_next_pastebin_episode(tmdb_id, params.get('season'), params.get('episode'))
+        if not found:
+            return None
+        next_season, next_episode, next_title, next_thumb = found
 
     next_play_url = _build_url(
         base_url, action='play_pastebin_episode', tmdb_id=tmdb_id, season=next_season,
-        episode=next_episode, title=params.get('next_title', ''), thumb=params.get('next_thumb', ''),
+        episode=next_episode, title=next_title, thumb=next_thumb,
         auto='1', match_resolution=chosen.get('resolution_group') or '', match_tag=chosen.get('audio_tag') or '',
     )
     return {
         'showtitle': params.get('title', ''),
         'season': next_season, 'episode': next_episode,
-        'title': params.get('next_title', ''), 'thumb': params.get('next_thumb', ''),
+        'title': next_title, 'thumb': next_thumb,
         'play_url': next_play_url,
     }
+
+
+def _lookup_next_pastebin_episode(tmdb_id, season, episode):
+    """Episode suivant DANS LA MEME SAISON, demande au serveur. Renvoie
+    (saison, episode, libelle, vignette) ou None s'il n'y en a plus - meme
+    limite volontaire que pour la bibliotheque locale : on n'enchaine jamais
+    d'une saison a la suivante."""
+    try:
+        current = int(episode)
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        episodes = api_client.get_watch_progress_vstream_episodes(tmdb_id, season)
+    except api_client.ApiError:
+        return None  # sans reponse, pas d'enchainement - jamais d'echec bruyant
+
+    for entry in episodes:
+        number = entry.get('episode')
+        if number is None or int(number) <= current:
+            continue
+        label = ADDON.getLocalizedString(30315) % number
+        if entry.get('name'):
+            label += ' - {0}'.format(entry['name'])
+        return str(season), str(number), label, entry.get('poster_url') or ''
+    return None
 
 
 def _build_next_episode_info(base_url, params):

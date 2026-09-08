@@ -133,6 +133,21 @@ ARRIVAL_IDLE_THRESHOLD = 120
 # Repasser sous ce seuil juste apres = quelqu'un vient d'agir sur la
 # telecommande, donc de revenir devant l'ecran.
 ARRIVAL_WAKE_IDLE = 30
+# Delai apres une lecture pendant lequel une baisse d'inactivite n'est JAMAIS
+# prise pour une arrivee.
+#
+# Regarder un episode sans toucher a la telecommande fait monter le compteur
+# d'inactivite de Kodi exactement comme une absence : reprendre la
+# telecommande a la fin d'un episode ressemblait donc trait pour trait a un
+# retour devant l'ecran, et rechargeait le skin alors que l'utilisateur etait
+# deja en train de naviguer dans ses widgets (signale en reel le 08/09/2026).
+#
+# Effet de bord du rechargement, tout aussi genant : il fait repartir d'un
+# coup la dizaine de widgets de l'accueil, qui interrogent tous le serveur -
+# heberge sur CETTE machine pour KodiMiniPC. D'ou les erreurs de connexion
+# constatees a la meme minute que le rechargement (07:21:56 et 07:22:16 pour
+# un rechargement a 07:22).
+POST_PLAYBACK_GRACE = 600
 
 
 def _maybe_refresh_watch_progress(state):
@@ -166,12 +181,18 @@ def _maybe_refresh_watch_progress(state):
     if state['pending'] is None:
         return
 
-    # 2. Jamais pendant une lecture.
+    now = time.time()
+
+    # 2. Jamais pendant une lecture, ni dans la foulee d'une lecture (voir
+    #    POST_PLAYBACK_GRACE : sinon la fin d'un episode passe pour une
+    #    arrivee et recharge le skin sous les doigts de l'utilisateur).
     if xbmc.Player().isPlaying():
+        state['last_playing_at'] = now
+        return
+    if now - state['last_playing_at'] < POST_PLAYBACK_GRACE:
         return
 
     # 3. Plancher anti-rafale.
-    now = time.time()
     if now - state['last_refresh'] < REFRESH_FLOOR_SECONDS:
         return
 
@@ -247,7 +268,7 @@ def run():
     # Etat du rafraichissement de reprise (voir _maybe_refresh_watch_progress) :
     # `pending` retient la revision serveur vue mais pas encore montree,
     # `previous_idle` sert a detecter le retour de l'utilisateur.
-    watch_state = {'pending': None, 'last_refresh': 0.0, 'previous_idle': 0}
+    watch_state = {'pending': None, 'last_refresh': 0.0, 'previous_idle': 0, 'last_playing_at': 0.0}
 
     while not monitor.waitForAbort(POLL_INTERVAL):
         elapsed_since_announce += POLL_INTERVAL

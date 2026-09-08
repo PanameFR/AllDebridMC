@@ -273,7 +273,12 @@ def list_watch_progress(status, category=None):
     params = {'status': status}
     if category:
         params['category'] = category
-    return _get('/api/kodi/watch-progress/list', params).get('items', [])
+    # LISTS_TIMEOUT et non le TIMEOUT normal (8 s) : cette route enrichit
+    # chaque entree via TMDB et le catalogue Pastebin, exactement comme les
+    # listes. Constate en reel le 08/09/2026 - au rechargement du skin, une
+    # dizaine de widgets interrogent le serveur en meme temps sur la MEME
+    # machine que Kodi, et ces appels depassaient les 8 s.
+    return _get('/api/kodi/watch-progress/list', params, timeout=LISTS_TIMEOUT).get('items', [])
 
 
 def post_watch_progress_vstream(
@@ -291,11 +296,14 @@ def post_watch_progress_vstream(
 
 
 def get_watch_progress_vstream_seasons(tmdb_id):
-    return _get('/api/kodi/watch-progress/vstream/seasons', {'tmdb_id': tmdb_id})
+    return _get('/api/kodi/watch-progress/vstream/seasons', {'tmdb_id': tmdb_id}, timeout=LISTS_TIMEOUT)
 
 
 def get_watch_progress_vstream_episodes(tmdb_id, season):
-    return _get('/api/kodi/watch-progress/vstream/episodes', {'tmdb_id': tmdb_id, 'season': season}).get('episodes', [])
+    return _get(
+        '/api/kodi/watch-progress/vstream/episodes',
+        {'tmdb_id': tmdb_id, 'season': season}, timeout=LISTS_TIMEOUT,
+    ).get('episodes', [])
 
 
 def get_watch_progress_vstream(tmdb_id, season=None, episode=None):
