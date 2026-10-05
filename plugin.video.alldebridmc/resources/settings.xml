@@ -5,9 +5,17 @@
             <group id="1">
                 <setting id="server" type="string" label="30001" help="">
                     <level>0</level>
-                    <default></default>
+                    <!-- Une espace, et allowempty, comme app_username/
+                         smb_username plus bas : une valeur par defaut VIDE
+                         avec allowempty=false est contradictoire pour Kodi,
+                         qui journalisait alors "error reading the default
+                         value of server" a CHAQUE lecture des reglages -
+                         des milliers de lignes dans kodi.log (releve du
+                         05/10/2026), au milieu desquelles les vraies
+                         erreurs devenaient introuvables. -->
+                    <default> </default>
                     <constraints>
-                        <allowempty>false</allowempty>
+                        <allowempty>true</allowempty>
                     </constraints>
                     <control type="edit" format="string">
                         <heading>30001</heading>

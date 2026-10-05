@@ -980,7 +980,8 @@ def play_item(base_url, handle, params):
         info, relative_path, title, from_start=params.get('fromstart') == '1',
     )
 
-    list_item.setPath(playback.build_smb_url(relative_path))
+    smb_url = playback.build_smb_url(relative_path)
+    list_item.setPath(smb_url)
     xbmcplugin.setResolvedUrl(handle, True, list_item)
 
     # Enchainement fiable (notre propre popup, voir next_up.py) si active et
@@ -988,8 +989,18 @@ def play_item(base_url, handle, params):
     # film, ou fonctionnalite desactivee dans les reglages) aucune proposition
     # d'enchainement, meme comportement que pour le contenu Pastebin (voir
     # play_pastebin_episode) depuis le retrait du repli vers service.upnext.
-    if params.get('next_path') and next_up.enabled():
-        next_up.start_chaining_monitor(_build_next_episode_info(base_url, params))
+    if not next_up.enabled():
+        pass  # enchainement desactive dans les reglages : rien a journaliser en boucle
+    elif params.get('next_path'):
+        next_up.start_chaining_monitor(
+            _build_next_episode_info(base_url, params), expected_file=smb_url,
+        )
+    elif params.get('season'):
+        # Un episode sans next_path : fin de saison, ou liste construite
+        # sans l'episode suivant. Trace, parce que "il n'enchaine pas" se
+        # diagnostique ici et nulle part ailleurs.
+        next_up.log('pas d enchainement arme pour %s S%sE%s : aucun episode suivant dans la liste' % (
+            params.get('showtitle') or title, params.get('season'), params.get('episode')))
 
     # Bloque jusqu'a la fin de la lecture pour suivre la progression - le
     # script du plugin n'est pas oblige de revenir vite apres
@@ -1122,9 +1133,11 @@ def play_pastebin_episode(base_url, params):
     # cas - et le serveur (_is_watched(), voir watch_progress.py cote Pi)
     # classe deja automatiquement une position aussi proche de la fin comme
     # "vue", quelle que soit la duree totale de l'episode.
-    next_info = _build_next_pastebin_episode_info(base_url, tmdb_id, params, chosen)
-    if next_info and next_up.enabled():
-        next_up.start_chaining_monitor(next_info)
+    if next_up.enabled():
+        next_up.log('lecture lancee : %s S%sE%s%s' % (
+            title or tmdb_id, season, episode, ' (enchainement automatique)' if auto else ''))
+        next_info = _build_next_pastebin_episode_info(base_url, tmdb_id, params, chosen)
+        next_up.start_chaining_monitor(next_info, expected_file=chosen['link'])
 
     # Thread demon : meme raison que dans play_pastebin_movie juste au-dessus.
     threading.Thread(
@@ -1190,8 +1203,13 @@ def _lookup_next_pastebin_episode(tmdb_id, season, episode):
 
     try:
         episodes = api_client.get_watch_progress_vstream_episodes(tmdb_id, season)
-    except api_client.ApiError:
-        return None  # sans reponse, pas d'enchainement - jamais d'echec bruyant
+    except api_client.ApiError as exc:
+        # Sans reponse, pas d'enchainement - jamais d'echec bruyant a
+        # l'ecran, mais toujours une trace : c'est exactement ce qui se
+        # passe quand le serveur met trop longtemps a repondre, et sans
+        # cette ligne l'enchainement semble "rater au hasard".
+        next_up.log('episode suivant introuvable (serveur injoignable : %s)' % exc)
+        return None
 
     for entry in episodes:
         number = entry.get('episode')
