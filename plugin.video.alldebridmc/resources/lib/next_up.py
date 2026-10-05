@@ -161,6 +161,17 @@ def _playing_file(player):
         return None
 
 
+def _still_ours(player, anchor):
+    """Notre fichier joue-t-il TOUJOURS ? Sert a reconnaitre un evenement
+    de fin/arret qui appartient a une autre lecture : xbmc.Player() les
+    delivre a toutes les surveillances en vie, sans dire de quel fichier il
+    s'agit."""
+    try:
+        return bool(player.isPlaying()) and _playing_file(player) == anchor
+    except Exception:
+        return False
+
+
 def _episode_label(info):
     season = info.get('season') or '?'
     episode = info.get('episode') or '?'
@@ -325,6 +336,13 @@ def _monitor_and_chain(next_info, expected_file, generation):
         if _superseded(generation):
             log('abandon : une lecture plus recente a pris la main')
             return
+        if (player.stopped or player.ended) and _still_ours(player, anchor):
+            # Evenement de fin/arret qui ne nous concerne pas : il vient de
+            # la lecture precedente, qui s'est terminee APRES notre ancrage
+            # (course de quelques dixiemes de seconde pendant la bascule).
+            # Notre fichier, lui, joue toujours.
+            player.stopped = False
+            player.ended = False
         if player.stopped:
             log('abandon : lecture arretee avant le popup')
             return
@@ -362,10 +380,10 @@ def _monitor_and_chain(next_info, expected_file, generation):
         if remaining <= notify_before:
             break
 
-    _show_popup_and_chain(player, monitor, next_info, remaining, generation)
+    _show_popup_and_chain(player, monitor, next_info, remaining, generation, anchor)
 
 
-def _show_popup_and_chain(player, monitor, next_info, remaining, generation):
+def _show_popup_and_chain(player, monitor, next_info, remaining, generation, anchor):
     """remaining : temps REELLEMENT restant au moment ou le popup apparait.
 
     Le compte a rebours ne peut jamais le depasser. Il etait jusqu'ici fige
@@ -407,15 +425,23 @@ def _show_popup_and_chain(player, monitor, next_info, remaining, generation):
             popup.close()
             return
         if player.stopped:
-            # Arret volontaire pendant le compte a rebours : on n'enchaine pas.
-            log('lecture arretee pendant le compte a rebours : pas d enchainement')
-            popup.close()
-            return
+            if _still_ours(player, anchor):
+                player.stopped = False  # arret d'une AUTRE lecture (voir _still_ours)
+            else:
+                # Arret volontaire pendant le compte a rebours : on n'enchaine pas.
+                log('lecture arretee pendant le compte a rebours : pas d enchainement')
+                popup.close()
+                return
         if player.ended:
             # Fin naturelle du fichier : c'est le cas NORMAL quand il restait
-            # moins que le compte a rebours. Surtout ne pas annuler ici.
-            log('fin naturelle du fichier pendant le compte a rebours')
-            break
+            # moins que le compte a rebours. Surtout ne pas annuler ici -
+            # sauf si notre fichier joue encore, auquel cas l'evenement
+            # venait d'une autre lecture (voir _still_ours).
+            if _still_ours(player, anchor):
+                player.ended = False
+            else:
+                log('fin naturelle du fichier pendant le compte a rebours')
+                break
 
         elapsed += _COUNTDOWN_TICK
         popup.update_countdown(countdown_total - elapsed, countdown_total)
