@@ -466,3 +466,7 @@ msgstr "Version majeure de Kodi différente — la compatibilité n'est pas gara
 msgctxt "#30388"
 msgid "Files absent from the backup are never deleted."
 msgstr "Les fichiers absents de la sauvegarde ne sont jamais supprimés."
+
+msgctxt "#30389"
+msgid "Temporary movies"
+msgstr "Films temporaires"

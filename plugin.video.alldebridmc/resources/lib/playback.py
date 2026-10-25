@@ -11,9 +11,12 @@ import xbmcaddon
 ADDON = xbmcaddon.Addon()
 
 
-def build_smb_url(relative_path):
+def build_smb_url(relative_path, share=None):
+    """share : partage SMB a utiliser a la place du partage principal
+    (reglage smb_share) - "FilmsTemporaires" pour les films temporaires,
+    un partage volontairement separe des disques de la bibliotheque."""
     server = ADDON.getSettingString('server').strip()
-    share = ADDON.getSettingString('smb_share').strip()
+    share = (share or ADDON.getSettingString('smb_share')).strip()
     # Le client SMB de Kodi (libsmbclient) attend de l'UTF-8 brut dans la
     # partie chemin/partage d'une URL smb:// — un chemin pourcent-encodé
     # (%20, %28...) échouait silencieusement à l'ouverture (confirmé en

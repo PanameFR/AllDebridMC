@@ -73,6 +73,10 @@ def route(base_url, handle, params):
         _list_root_menu(base_url, handle)
     elif action == 'browse':
         list_directory(base_url, handle, params.get('path', ''))
+    elif action == 'temp_films':
+        _list_temp_films(base_url, handle)
+    elif action == 'play_temp':
+        _play_temp_film(handle, params)
     elif action == 'local_search_prompt':
         _run_local_search_prompt(base_url, handle)
     elif action == 'local_search':
@@ -179,7 +183,8 @@ def _list_root_menu(base_url, handle):
 
     items = [
         _build_media_menu_item(base_url), _build_pastebin_menu_item(base_url),
-        _build_alldebrid_menu_item(base_url), _build_lists_menu_item(base_url),
+        _build_alldebrid_menu_item(base_url), _build_temp_films_menu_item(base_url),
+        _build_lists_menu_item(base_url),
     ]
     if _watch_progress_enabled():
         items.append(_build_watch_home_menu_item(base_url))
@@ -278,6 +283,72 @@ def _build_media_menu_item(base_url):
     list_item.setArt({'icon': 'DefaultHardDisk.png'})
     url = _build_url(base_url, action='browse', path='')
     return url, list_item, True
+
+
+def _build_temp_films_menu_item(base_url):
+    list_item = xbmcgui.ListItem(label=ADDON.getLocalizedString(30389), offscreen=True)
+    list_item.setArt({'icon': 'DefaultMovies.png'})
+    return _build_url(base_url, action='temp_films'), list_item, True
+
+
+def _list_temp_films(base_url, handle):
+    """Films temporaires : un dossier du disque systeme de KodiMiniPC, sur son
+    propre partage reseau ("FilmsTemporaires") - jamais melange aux disques
+    de la bibliotheque ni au catalogue (demande explicitement). Affiches et
+    fiches TMDB fournies par le serveur. Cible de widget :
+    plugin://plugin.video.alldebridmc/?action=temp_films"""
+    label = ADDON.getLocalizedString(30389)
+    xbmcplugin.setPluginCategory(handle, label)
+    xbmcplugin.setContent(handle, 'movies')
+    try:
+        data = api_client.temp_films()
+    except api_client.ApiError as exc:
+        handle_api_error(exc)
+        xbmcplugin.endOfDirectory(handle, succeeded=False)
+        return
+
+    share = data.get('share') or 'FilmsTemporaires'
+    items = []
+    for film in data.get('items', []):
+        title = film.get('title') or film.get('name') or '?'
+        li = xbmcgui.ListItem(label=title, offscreen=True)
+        art = {}
+        if film.get('poster_url'):
+            art.update(thumb=film['poster_url'], poster=film['poster_url'], icon=film['poster_url'])
+        if film.get('fanart_url'):
+            art.update(fanart=film['fanart_url'], landscape=film['fanart_url'])
+        if art:
+            li.setArt(art)
+        info = li.getVideoInfoTag()
+        info.setMediaType('movie')
+        info.setTitle(title)
+        if film.get('year'):
+            info.setYear(int(film['year']))
+        if film.get('overview'):
+            info.setPlot(film['overview'])
+        if film.get('rating'):
+            info.setRating(float(film['rating']))
+        li.setProperty('IsPlayable', 'true')
+        url = _build_url(base_url, action='play_temp', file=film['file'], share=share, title=title,
+                         thumb=film.get('poster_url') or '')
+        items.append((url, li, False))
+
+    xbmcplugin.addDirectoryItems(handle, items, len(items))
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
+
+
+def _play_temp_film(handle, params):
+    """Lecture directe sur le partage des films temporaires. Pas de suivi
+    "En cours" cote serveur (ces fichiers vivent hors de la bibliotheque) :
+    la reprise reste celle de Kodi, propre a chaque appareil."""
+    title = params.get('title', '')
+    li = xbmcgui.ListItem(label=title, offscreen=True)
+    if params.get('thumb'):
+        li.setArt({'thumb': params['thumb'], 'icon': params['thumb']})
+    li.getVideoInfoTag().setTitle(title)
+    li.setPath(playback.build_smb_url(params.get('file', ''), share=params.get('share') or 'FilmsTemporaires'))
+    xbmcplugin.setResolvedUrl(handle, True, li)
 
 
 def _build_pastebin_menu_item(base_url):

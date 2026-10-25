@@ -232,6 +232,13 @@ def search_vstream_catalog(query, categories=None):
     return _get('/api/kodi/lists/search-vstream', params).get('results', [])
 
 
+def temp_films():
+    """Films temporaires (dossier du disque systeme de KodiMiniPC, partage
+    reseau a part) - voir temp_films.py cote serveur. LISTS_TIMEOUT : la
+    toute premiere liste rattache chaque film a sa fiche TMDB."""
+    return _get('/api/kodi/temp-films', timeout=LISTS_TIMEOUT)
+
+
 def resolve_pastebin_files(media_type, tmdb_id, season=None, episode=None):
     """Resout en un seul appel tous les fichiers Pastebin disponibles pour ce
     tmdb_id (filtres par saison/episode si fournis) en liens AllDebrid
