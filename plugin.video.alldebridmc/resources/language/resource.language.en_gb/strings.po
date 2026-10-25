@@ -468,5 +468,5 @@ msgid "Files absent from the backup are never deleted."
 msgstr "Files absent from the backup are never deleted."
 
 msgctxt "#30389"
-msgid "Temporary movies"
-msgstr "Temporary movies"
+msgid "Local files"
+msgstr "Local files"
