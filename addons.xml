@@ -25,7 +25,7 @@
 </addon>
 <addon id="plugin.video.alldebridmc"
        name="AllDebrid Media Center"
-       version="1.25.0"
+       version="1.26.0"
        provider-name="jordan">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -41,7 +41,7 @@
         <description lang="en_GB">Browse the movies and TV shows on your self-hosted AllDebrid Downloader server (Raspberry Pi) from Kodi, with TMDB posters and metadata (seasons, episodes, plots), playing video directly from the SMB network share. Also includes direct access to the Pastebin catalog (search, browse by genre/year/broadcaster, curated lists, new releases) and to your saved AllDebrid links, resolved and played directly, without depending on the vStream addon. The Lists feature lets you build personal lists mixing this Pastebin content with your own local library. Playback resume is synced across all your Kodi devices via the server (movies AND TV episodes, precisely, Pastebin content included), with dedicated "In progress"/"History" screens - a show is listed as itself, and tapping it opens Seasons then Episodes screens to find exactly where you left off. Reliable, built-in automatic episode chaining (a "Next episode" popup with a configurable countdown), for your local library AND for Pastebin content, no longer dependent on service.upnext switching too late and occasionally missing the handoff. Full Kodi backup/restore built in (files, addons and their data, databases, artwork cache, profiles, settings): "Backup" in the root menu pushes an archive to the server (3 kept, oldest deleted automatically), and can restore one onto a blank Kodi to get the exact same setup on a new device (Android, Mac, Windows). Worth knowing: an addon with binary components compiled for a specific platform (e.g. inputstream.adaptive) may not work as-is after restoring onto a different platform.</description>
         <platform>all</platform>
         <license>GPL-3.0</license>
-        <news>1.25.0 : ENCHAINEMENT. Plusieurs popups "Episode suivant" pouvaient s'enchainer en rafale (releve reel du 25/09/2026 sur Code Geass : trois popups en 34 secondes, E06 puis E07 puis E08 lances coup sur coup). Cause : la surveillance d'un episode n'avait aucun moyen de savoir a quelle lecture elle se rapportait - le lecteur de Kodi est global - et se raccrochait donc aux dernieres secondes de l'episode PRECEDENT, qui joue encore pendant la bascule : elle y voyait "plus que deux secondes" et affichait aussitot son propre popup, en cascade. Desormais chaque surveillance est ancree au fichier reellement lance, ignore les evenements de fin recus avant son propre demarrage, et s'efface des qu'une lecture plus recente prend la main. JOURNAL : l'enchainement ecrit maintenant son deroule complet dans kodi.log, prefixe "[alldebridmc] chainage" (armement, lecture confirmee, popup, annulation, ouverture de l'episode suivant, et la raison precise quand il n'enchaine pas). REGLAGES : le reglage "Serveur" avait une valeur par defaut vide declaree comme interdite de vide - Kodi journalisait une erreur a chaque lecture des reglages, des milliers de lignes qui noyaient les vraies erreurs.</news>
+        <news>1.26.0 : CONTENU ALLDEBRID. Les categories "Mes films AllDebrid" et "Mes series AllDebrid" (alimentees depuis la nouvelle page "Contenu AllDebrid" du serveur) affichent directement les affiches de vos films et series, sans le sous-menu Recherche/Genres/Nouveautes des categories du catalogue.</news>
         <assets>
             <icon>icon.png</icon>
         </assets>

@@ -87,6 +87,15 @@ def render_category(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
 
+    if category.startswith('alldebrid_'):
+        # "Mes films/series AllDebrid" (page "Contenu AllDebrid" du serveur) :
+        # une bibliotheque personnelle de quelques dizaines de titres, rangee
+        # a la main - les affiches directement, sans le sous-menu Recherche/
+        # Genres/Nouveautes pense pour les milliers de titres du catalogue
+        # (demande explicitement).
+        render_browse(base_url, handle, dict(params, page=1))
+        return
+
     xbmcplugin.setPluginCategory(handle, label)
     xbmcplugin.setContent(handle, 'files')
 
