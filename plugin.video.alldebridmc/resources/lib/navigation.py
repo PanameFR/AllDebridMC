@@ -334,7 +334,8 @@ def _list_temp_films(base_url, handle):
         items.append((url, li, False))
 
     xbmcplugin.addDirectoryItems(handle, items, len(items))
-    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
+    # Ordre choisi avec les fleches de la page "Fichiers locaux" du serveur.
+    xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
     xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
 
 
