@@ -470,3 +470,15 @@ msgstr "Les fichiers absents de la sauvegarde ne sont jamais supprimés."
 msgctxt "#30389"
 msgid "Local files"
 msgstr "Fichiers locaux"
+
+msgctxt "#30390"
+msgid "Maximum episodes played in a row (0 = unlimited)"
+msgstr "Épisodes enchaînés au maximum (0 = illimité)"
+
+msgctxt "#30391"
+msgid "After this many episodes chained automatically, the popup waits for you to press Play now instead of starting the next episode by itself. Pressing Play now restarts the count."
+msgstr "Après ce nombre d'épisodes enchaînés automatiquement, le popup attend que vous appuyiez sur Lire maintenant au lieu de lancer l'épisode suivant tout seul. Appuyer sur Lire maintenant remet le compteur à zéro."
+
+msgctxt "#30392"
+msgid "Still watching? Press Play now to continue"
+msgstr "Toujours là ? Appuyez sur Lire maintenant pour continuer"

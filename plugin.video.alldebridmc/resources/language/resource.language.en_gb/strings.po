@@ -470,3 +470,15 @@ msgstr "Files absent from the backup are never deleted."
 msgctxt "#30389"
 msgid "Local files"
 msgstr "Local files"
+
+msgctxt "#30390"
+msgid "Maximum episodes played in a row (0 = unlimited)"
+msgstr "Maximum episodes played in a row (0 = unlimited)"
+
+msgctxt "#30391"
+msgid "After this many episodes chained automatically, the popup waits for you to press Play now instead of starting the next episode by itself. Pressing Play now restarts the count."
+msgstr "After this many episodes chained automatically, the popup waits for you to press Play now instead of starting the next episode by itself. Pressing Play now restarts the count."
+
+msgctxt "#30392"
+msgid "Still watching? Press Play now to continue"
+msgstr "Still watching? Press Play now to continue"

@@ -153,6 +153,16 @@
                     </constraints>
                     <control type="spinner" format="integer"/>
                 </setting>
+                <setting id="chaining_max_episodes" type="integer" label="30390" help="30391">
+                    <level>0</level>
+                    <default>3</default>
+                    <constraints>
+                        <minimum>0</minimum>
+                        <maximum>20</maximum>
+                        <step>1</step>
+                    </constraints>
+                    <control type="spinner" format="integer"/>
+                </setting>
             </group>
         </category>
         <category id="lists" label="30100" help="">

@@ -23,6 +23,7 @@ quelques secondes d'avance sur la fin reelle.
 """
 import json
 import threading
+import time
 
 import xbmc
 import xbmcaddon
@@ -128,6 +129,51 @@ def _autoplay_countdown():
     return value if value else 20
 
 
+def _max_episodes():
+    """Episodes enchaines automatiquement d'affilee avant de demander
+    "Toujours la ?" (0 = jamais). Reglage ajoute en 1.31.0."""
+    try:
+        value = ADDON.getSettingInt('chaining_max_episodes')
+    except (AttributeError, TypeError):
+        return 3
+    return max(0, value)
+
+
+# ---- compteur d'episodes enchaines d'affilee -------------------------------
+# Chaque episode est joue par une NOUVELLE invocation du plugin : le compteur
+# vit donc dans une propriete de la fenetre d'accueil de Kodi, seul endroit
+# partage entre ces invocations. Un enchainement pose aussi une marque datee
+# juste avant d'ouvrir l'episode suivant ; la lecture qui demarre la consomme.
+# Sans marque recente, c'est une lecture lancee a la main : compteur a zero.
+_HOME_WINDOW_ID = 10000
+_CHAIN_COUNT_PROP = 'alldebridmc.chain_count'
+_CHAIN_PENDING_PROP = 'alldebridmc.chain_pending'
+_CHAIN_PENDING_MAX_AGE = 120  # secondes entre l'ouverture et l'armement suivant
+
+
+def _consume_chain_count():
+    window = xbmcgui.Window(_HOME_WINDOW_ID)
+    pending = window.getProperty(_CHAIN_PENDING_PROP)
+    window.clearProperty(_CHAIN_PENDING_PROP)
+    try:
+        chained = bool(pending) and 0 <= time.time() - float(pending) < _CHAIN_PENDING_MAX_AGE
+    except ValueError:
+        chained = False
+    if not chained:
+        window.setProperty(_CHAIN_COUNT_PROP, '0')
+        return 0
+    try:
+        return max(0, int(window.getProperty(_CHAIN_COUNT_PROP) or 0))
+    except ValueError:
+        return 0
+
+
+def _mark_chained(count):
+    window = xbmcgui.Window(_HOME_WINDOW_ID)
+    window.setProperty(_CHAIN_COUNT_PROP, str(count))
+    window.setProperty(_CHAIN_PENDING_PROP, str(time.time()))
+
+
 def _player_open(file_url):
     xbmc.executeJSONRPC(json.dumps({
         'jsonrpc': '2.0', 'id': 1, 'method': 'Player.Open',
@@ -220,9 +266,12 @@ def start_chaining_monitor(next_info, expected_file=None):
         _generation += 1
         generation = _generation
 
-    log('arme pour %s | fichier en cours=%s | popup a -%ss, compte a rebours %ss' % (
+    next_info = dict(next_info, chain_count=_consume_chain_count())
+
+    log('arme pour %s | fichier en cours=%s | popup a -%ss, compte a rebours %ss | enchaines %s/%s' % (
         _episode_label(next_info), _short(expected_file),
         _notify_before_end(), _autoplay_countdown(),
+        next_info['chain_count'], _max_episodes() or 'illimite',
     ))
 
     thread = threading.Thread(target=_run_monitor, args=(next_info, expected_file, generation))
@@ -351,6 +400,8 @@ def _monitor_and_chain(next_info, expected_file, generation):
             # (saut direct dans les dernieres secondes) : on enchaine quand
             # meme, sans popup - il n'y a plus rien a proposer.
             log('fin du fichier sans etre passe par le popup (saut) -> %s' % _episode_label(next_info))
+            # Un saut a la main prouve que quelqu'un regarde : compteur a zero.
+            _mark_chained(0)
             _player_open(next_info['play_url'])
             return
         try:
@@ -394,20 +445,31 @@ def _show_popup_and_chain(player, monitor, next_info, remaining, generation, anc
     jamais lieu (signale en reel : "si je vais a 18 secondes avant la fin le
     popup ne se declenche pas")."""
     countdown_total = max(1.0, min(float(_autoplay_countdown()), remaining - 1.0))
+    chain_count = int(next_info.get('chain_count') or 0)
+    max_episodes = _max_episodes()
+    # Limite atteinte : pas de compte a rebours, on attend "Lire maintenant".
+    must_confirm = bool(max_episodes) and chain_count >= max_episodes
 
-    log('popup affiche a -%.0fs de la fin | compte a rebours %.0fs | propose %s' % (
-        remaining, countdown_total, _episode_label(next_info)))
+    log('popup affiche a -%.0fs de la fin | %s | propose %s' % (
+        remaining,
+        'limite de %d episodes atteinte : attente de Lire maintenant' % max_episodes if must_confirm
+        else 'compte a rebours %.0fs' % countdown_total,
+        _episode_label(next_info)))
 
     popup = NextEpisodePopup(
         'script-alldebridmc-nextup.xml', ADDON.getAddonInfo('path'), 'default', '1080i',
     )
     popup.set_episode_info(next_info)
     popup.show()
-    popup.update_countdown(countdown_total, countdown_total)
+    if must_confirm:
+        popup.setProperty('alldebridmc_countdown_text', ADDON.getLocalizedString(30392))
+    else:
+        popup.update_countdown(countdown_total, countdown_total)
 
     elapsed = 0.0
+    watch_now = False
 
-    while elapsed < countdown_total:
+    while must_confirm or elapsed < countdown_total:
         if monitor.waitForAbort(_COUNTDOWN_TICK):
             popup.close()
             return
@@ -419,6 +481,7 @@ def _show_popup_and_chain(player, monitor, next_info, remaining, generation, anc
             return
         if popup.is_watch_now():
             log('"Lire maintenant" apres %.0fs' % elapsed)
+            watch_now = True
             break
         if _superseded(generation):
             log('popup ferme : une lecture plus recente a pris la main')
@@ -439,13 +502,22 @@ def _show_popup_and_chain(player, monitor, next_info, remaining, generation, anc
             # venait d'une autre lecture (voir _still_ours).
             if _still_ours(player, anchor):
                 player.ended = False
+            elif must_confirm:
+                log('fin du fichier sans reponse apres %d episodes enchaines : pas d enchainement' % chain_count)
+                popup.close()
+                return
             else:
                 log('fin naturelle du fichier pendant le compte a rebours')
                 break
 
         elapsed += _COUNTDOWN_TICK
-        popup.update_countdown(countdown_total - elapsed, countdown_total)
+        if not must_confirm:
+            popup.update_countdown(countdown_total - elapsed, countdown_total)
 
     popup.close()
-    log('ouverture de %s' % _episode_label(next_info))
+    # "Lire maintenant" prouve que quelqu'un regarde : le compteur repart de
+    # zero. Sinon, c'est un enchainement automatique de plus.
+    next_count = 0 if watch_now else chain_count + 1
+    _mark_chained(next_count)
+    log('ouverture de %s | enchaines automatiquement d affilee : %d' % (_episode_label(next_info), next_count))
     _player_open(next_info['play_url'])
