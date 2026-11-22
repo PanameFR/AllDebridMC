@@ -1068,11 +1068,20 @@ def play_item(base_url, handle, params):
             _build_next_episode_info(base_url, params), expected_file=smb_url,
         )
     elif params.get('season'):
-        # Un episode sans next_path : fin de saison, ou liste construite
-        # sans l'episode suivant. Trace, parce que "il n'enchaine pas" se
-        # diagnostique ici et nulle part ailleurs.
-        next_up.log('pas d enchainement arme pour %s S%sE%s : aucun episode suivant dans la liste' % (
-            params.get('showtitle') or title, params.get('season'), params.get('episode')))
+        # Episode sans next_path : c'est le cas de TOUT episode lance par
+        # l'enchainement lui-meme (son URL ne porte que l'episode, pas celui
+        # d'apres). Avant 1.30.0 la chaine s'arretait donc un episode sur
+        # deux (constate le 22/11/2026 sur La Casa de Papel : E4 -> E5 puis
+        # rien, E6 -> E7 puis rien). On redemande la liste de la saison au
+        # serveur pour trouver l'episode suivant.
+        next_info = _next_episode_from_folder(base_url, relative_path)
+        if next_info:
+            next_up.start_chaining_monitor(next_info, expected_file=smb_url)
+        else:
+            # Fin de saison, ou dossier illisible. Trace, parce que "il
+            # n'enchaine pas" se diagnostique ici et nulle part ailleurs.
+            next_up.log('pas d enchainement arme pour %s S%sE%s : aucun episode suivant dans la liste' % (
+                params.get('showtitle') or title, params.get('season'), params.get('episode')))
 
     # Bloque jusqu'a la fin de la lecture pour suivre la progression - le
     # script du plugin n'est pas oblige de revenir vite apres
@@ -1291,6 +1300,28 @@ def _lookup_next_pastebin_episode(tmdb_id, season, episode):
         if entry.get('name'):
             label += ' - {0}'.format(entry['name'])
         return str(season), str(number), label, entry.get('poster_url') or ''
+    return None
+
+
+def _next_episode_from_folder(base_url, relative_path):
+    """Episode suivant d'un fichier local, lu dans la liste de son dossier
+    telle que le serveur la renvoie (deja triee) - exactement la meme
+    regle que list_directory(), via build_list_item(). None en fin de
+    saison ou si le serveur ne repond pas."""
+    parent = relative_path.rsplit('/', 1)[0] if '/' in relative_path else ''
+    try:
+        data = api_client.browse(parent)
+    except api_client.ApiError:
+        return None
+    entries = [e for e in data.get('entries', []) if e.get('is_dir') or e.get('is_video')]
+    for i, entry in enumerate(entries):
+        if entry.get('path') != relative_path or i + 1 >= len(entries):
+            continue
+        url, _list_item, _is_folder = build_list_item(base_url, entry, entries[i + 1])
+        play_params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(url).query))
+        if play_params.get('next_path'):
+            return _build_next_episode_info(base_url, play_params)
+        return None
     return None
 
 
