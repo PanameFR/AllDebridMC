@@ -251,40 +251,53 @@ def render_browse(base_url, handle, params):
     lists_gui.render_pastebin_screen(base_url, handle, data.get('entries', []), label, next_page_url=next_page_url)
 
 
+def _render_paged(base_url, handle, params, fetch, screen_label):
+    """Ecran pagine commun (Populaires, Nouveautes, Les mieux notes, Genres,
+    Derniers ajouts, Recherche) : avant 1.29.0 ils s'arretaient a 40
+    titres. fetch(page) renvoie la reponse du serveur ({entries,
+    has_next}) ; la page suivante reprend exactement les memes parametres."""
+    page = int(params.get('page') or 1)
+    try:
+        data = fetch(page)
+    except api_client.ApiError as exc:
+        _handle_api_error(exc)
+        data = {}
+    next_page_url = None
+    if data.get('has_next'):
+        next_params = {k: v for k, v in params.items() if k not in ('action', 'page')}
+        next_page_url = navigation.build_watch_action_url(
+            base_url, params.get('action'), page=page + 1, **next_params
+        )
+    lists_gui.render_pastebin_screen(
+        base_url, handle, data.get('entries', []), screen_label, next_page_url=next_page_url,
+    )
+
+
 def render_trending(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
-    try:
-        entries = api_client.pastebin_trending(category)
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        entries = []
-    screen_label = '{0} — {1}'.format(label, ADDON.getLocalizedString(30359))
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    _render_paged(
+        base_url, handle, params, lambda page: api_client.pastebin_trending(category, page=page),
+        '{0} — {1}'.format(label, ADDON.getLocalizedString(30359)),
+    )
 
 
 def render_news(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
-    try:
-        entries = api_client.pastebin_news(category)
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        entries = []
-    screen_label = '{0} — {1}'.format(label, ADDON.getLocalizedString(30372))
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    _render_paged(
+        base_url, handle, params, lambda page: api_client.pastebin_news(category, page=page),
+        '{0} — {1}'.format(label, ADDON.getLocalizedString(30372)),
+    )
 
 
 def render_top_rated(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
-    try:
-        entries = api_client.pastebin_top_rated(category)
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        entries = []
-    screen_label = '{0} — {1}'.format(label, ADDON.getLocalizedString(30374))
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    _render_paged(
+        base_url, handle, params, lambda page: api_client.pastebin_top_rated(category, page=page),
+        '{0} — {1}'.format(label, ADDON.getLocalizedString(30374)),
+    )
 
 
 # ---- Genres (écran de choix, puis titres du genre choisi) ------------------
@@ -325,14 +338,14 @@ def render_genre_browse(base_url, handle, params):
     movie_genre_id = params.get('movie_genre_id') or None
     tv_genre_id = params.get('tv_genre_id') or None
 
-    try:
-        entries = api_client.pastebin_genre_browse(category, movie_genre_id=movie_genre_id, tv_genre_id=tv_genre_id)
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        entries = []
-
     screen_label = '{0} — {1}'.format(label, genre_name) if genre_name else label
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    _render_paged(
+        base_url, handle, params,
+        lambda page: api_client.pastebin_genre_browse(
+            category, movie_genre_id=movie_genre_id, tv_genre_id=tv_genre_id, page=page,
+        ),
+        screen_label,
+    )
 
 
 # ---- Par diffuseur (écran de choix, puis titres du diffuseur choisi) -------
@@ -393,13 +406,10 @@ def render_network_browse(base_url, handle, params):
 def render_recent(base_url, handle, params):
     category = params.get('category', '')
     label = params.get('label') or category
-    try:
-        entries = api_client.pastebin_recent(category)
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        entries = []
-    screen_label = '{0} — {1}'.format(label, ADDON.getLocalizedString(30360))
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    _render_paged(
+        base_url, handle, params, lambda page: api_client.pastebin_recent(category, page=page),
+        '{0} — {1}'.format(label, ADDON.getLocalizedString(30360)),
+    )
 
 
 def action_search_prompt(base_url, params):
@@ -418,16 +428,14 @@ def render_search(base_url, handle, params):
     label = params.get('label') or category
     query = params.get('query', '')
 
-    try:
-        entries = api_client.pastebin_search(category, query) if query else []
-    except api_client.ApiError as exc:
-        _handle_api_error(exc)
-        entries = []
-
     screen_label = (
         '{0} — {1}'.format(label, ADDON.getLocalizedString(30341).format(query)) if query else label
     )
-    lists_gui.render_pastebin_screen(base_url, handle, entries, screen_label)
+    _render_paged(
+        base_url, handle, params,
+        lambda page: api_client.pastebin_search(category, query, page=page) if query else {},
+        screen_label,
+    )
 
 
 # ---- Rechercher - Sagas (vStream::showSearchSaga/showSaga) -----------------

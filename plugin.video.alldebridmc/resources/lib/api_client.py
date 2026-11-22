@@ -412,32 +412,30 @@ def pastebin_browse(category, page=1):
     return _get('/api/kodi/pastebin/category/{0}'.format(category), {'page': page}, timeout=PASTEBIN_TIMEOUT)
 
 
-def pastebin_search(category, query):
+# Les fonctions ci-dessous renvoient la reponse complete du serveur
+# ({entries, page, has_next}) : depuis 1.29.0, ces ecrans ont une page
+# suivante au lieu de s'arreter a 40 titres.
+def pastebin_search(category, query, page=1):
     return _get(
-        '/api/kodi/pastebin/category/{0}/search'.format(category), {'q': query}, timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+        '/api/kodi/pastebin/category/{0}/search'.format(category), {'q': query, 'page': page},
+        timeout=PASTEBIN_TIMEOUT,
+    )
 
 
-def pastebin_recent(category):
-    return _get('/api/kodi/pastebin/category/{0}/recent'.format(category), timeout=PASTEBIN_TIMEOUT).get('entries', [])
+def pastebin_recent(category, page=1):
+    return _get('/api/kodi/pastebin/category/{0}/recent'.format(category), {'page': page}, timeout=PASTEBIN_TIMEOUT)
 
 
-def pastebin_trending(category):
-    return _get(
-        '/api/kodi/pastebin/category/{0}/trending'.format(category), timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+def pastebin_trending(category, page=1):
+    return _get('/api/kodi/pastebin/category/{0}/trending'.format(category), {'page': page}, timeout=PASTEBIN_TIMEOUT)
 
 
-def pastebin_news(category):
-    return _get(
-        '/api/kodi/pastebin/category/{0}/news'.format(category), timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+def pastebin_news(category, page=1):
+    return _get('/api/kodi/pastebin/category/{0}/news'.format(category), {'page': page}, timeout=PASTEBIN_TIMEOUT)
 
 
-def pastebin_top_rated(category):
-    return _get(
-        '/api/kodi/pastebin/category/{0}/top_rated'.format(category), timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+def pastebin_top_rated(category, page=1):
+    return _get('/api/kodi/pastebin/category/{0}/top_rated'.format(category), {'page': page}, timeout=PASTEBIN_TIMEOUT)
 
 
 def pastebin_genres(category):
@@ -446,15 +444,15 @@ def pastebin_genres(category):
     ).get('genres', [])
 
 
-def pastebin_genre_browse(category, movie_genre_id=None, tv_genre_id=None):
-    params = {}
+def pastebin_genre_browse(category, movie_genre_id=None, tv_genre_id=None, page=1):
+    params = {'page': page}
     if movie_genre_id:
         params['movie_genre_id'] = movie_genre_id
     if tv_genre_id:
         params['tv_genre_id'] = tv_genre_id
     return _get(
         '/api/kodi/pastebin/category/{0}/genre'.format(category), params, timeout=PASTEBIN_TIMEOUT,
-    ).get('entries', [])
+    )
 
 
 def pastebin_networks(category):
